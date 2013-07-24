@@ -1,0 +1,66 @@
+#initial arguments used to define the inputs, models, outputs, etc
+wd = "/home/jc140298/bccvl/ABT/" #define the working directory - where to put the outputs
+species = "ABT"	#define the species of interest
+occur.data = "/home/jc140298/bccvl/ABT/occur.csv" #define the lon/lat of the observation records -- 2 column matrix of longitude and latitude
+bkgd.data = "/home/jc140298/bccvl/ABT/bkgd.csv" #define the the lon/lat of the background / pseudo absence points to use -- 2 column matrix of longitude and latitude.. use NULL if no bkgd needed
+
+current.enviro.data = c("/home/jc165798/working/BCCVL/envirodata/climate_1990/bioclim_01.asc",
+	"/home/jc165798/working/BCCVL/envirodata/climate_1990/bioclim_04.asc",
+	"/home/jc165798/working/BCCVL/envirodata/climate_1990/bioclim_05.asc",
+	"/home/jc165798/working/BCCVL/envirodata/climate_1990/bioclim_06.asc",
+	"/home/jc165798/working/BCCVL/envirodata/climate_1990/bioclim_12.asc",
+	"/home/jc165798/working/BCCVL/envirodata/climate_1990/bioclim_15.asc",
+	"/home/jc165798/working/BCCVL/envirodata/climate_1990/bioclim_16.asc",	
+	"/home/jc165798/working/BCCVL/envirodata/climate_1990/bioclim_17.asc") #define the enviro data to use -- assumed location of data files in ascii grid format
+enviro.data.names = c("bioclim_01","bioclim_04","bioclim_05","bioclim_06","bioclim_12","bioclim_15","bioclim_16","bioclim_17") #define the names of the enviro data
+enviro.data.type = c('continuous','continuous','continuous','continuous','continuous','continuous','continuous','continuous') #type in terms of continuous or categorical
+
+future.enviro.data = c("/home/jc165798/working/BCCVL/envirodata/RCP85_iap-fgoals10g_2085/bioclim_01.asc",
+"/home/jc165798/working/BCCVL/envirodata/RCP85_iap-fgoals10g_2085/bioclim_04.asc",
+"/home/jc165798/working/BCCVL/envirodata/RCP85_iap-fgoals10g_2085/bioclim_05.asc",
+"/home/jc165798/working/BCCVL/envirodata/RCP85_iap-fgoals10g_2085/bioclim_06.asc",
+"/home/jc165798/working/BCCVL/envirodata/RCP85_iap-fgoals10g_2085/bioclim_12.asc",
+"/home/jc165798/working/BCCVL/envirodata/RCP85_iap-fgoals10g_2085/bioclim_15.asc",
+"/home/jc165798/working/BCCVL/envirodata/RCP85_iap-fgoals10g_2085/bioclim_16.asc",
+"/home/jc165798/working/BCCVL/envirodata/RCP85_iap-fgoals10g_2085/bioclim_17.asc") #define the enviro data to use -- assumed location of data files in ascii grid format
+
+### define the models to be used
+model.bioclim = TRUE #boolean to run BIOCLIM algorithm -- all envirodata must be continuous
+project.bioclim = TRUE #boolean to project BIOCLIM algorithm 
+if (project.bioclim) {
+	# there is an additional argument 'tails' which you can use to ignore the left or right tail of the percentile distribution for a variable
+	opt.tails = c("both") # character vector with a length equal to the number of variables used in the model
+	# valid values are "both" (the default), "low" and "high" 
+	# if only one value is entered in the vector, that value will apply to each variable
+	# For example, if you have a variable x with an observed distribution between 10 and 20 and you are predicting the bioclim value for a value 25, 
+		# the default result would be zero (outside of all observed values); but if you use tail='low', the high (right) tail is ignored and the value 
+		# returned will be 1.
+}
+
+
+model.brt = TRUE #boolean to run Boosted regression tree algorithm
+if (model.brt) { #additional parameters to set
+	brt.fold.vector = NULL #a fold vector to be read in for cross validation with offsets
+	brt.tree.complexity = 1 #sets the complexity of individual trees
+	brt.learning.rate = 0.01 #sets the weight applied to individual trees
+	brt.bag.fraction = 0.75 #sets the proportion of observations used in selecting variables
+	#brt.site.weights = rep(1, nrow(data)) #allows varying weighting for sites
+	#brt.var.monotone = rep(0, length(gbm.x)) #restricts responses to individual predictors to monotone
+	brt.n.folds = 10 #number of folds
+	brt.prev.stratify = TRUE #prevalence stratify the folds - only for presence/absence data
+	brt.family = "bernoulli" #family - bernoulli (=binomial), poisson, laplace or gaussian
+	brt.n.trees = 50 #number of initial trees to fit
+	brt.step.size = brt.n.trees #numbers of trees to add at each cycle
+	brt.max.trees = 10000 #max number of trees to fit before stopping
+	brt.tolerance.method = "auto" #method to use in deciding to stop - "fixed" or "auto"
+	brt.tolerance = 0.001 #tolerance value to use - if method == fixed is absolute, if auto is multiplier * total mean deviance
+	brt.keep.data = FALSE #Logical. keep raw data in final model
+	brt.plot.main = FALSE #Logical. plot hold-out deviance curve
+	brt.plot.folds = FALSE #Logical. plot the individual folds as well
+	brt.verbose = FALSE #Logical. control amount of screen reporting
+	brt.silent = FALSE #Logical. to allow running with no output for simplifying model)
+	brt.keep.fold.models = FALSE  #Logical. keep the fold models from cross valiation
+	brt.keep.fold.vector = FALSE #Logical. allows the vector defining fold membership to be kept
+	brt.keep.fold.fit = FALSE #Logical. allows the predicted values for observations from cross-validation to be kept
+}
+project.brt = TRUE #boolean to project Boosted regression tree algorithm
