@@ -13,8 +13,8 @@ if(length(args)==0){
 	# expecting wd to be able to locate arguments file
 }
 
-# load arguments file
-source(paste(wd, "01.sprint.init.args.txt", sep=""))
+# load arguments file 
+source(paste(wd, "02.sprint.init.args.txt", sep=""))
 
 ###check if libraries are installed, install if necessary and then load them
 necessary=c("dismo","SDMTools", "gbm") #list the libraries needed
@@ -31,8 +31,8 @@ if (file.exists(paste(wd, "occur.RData", sep="")) && file.exists(paste(wd, "bkgd
 if (populate.data) {
 	occur = read.csv(occur.data) #read in the observation data lon/lat
 	if (!is.null(bkgd.data)) bkgd = read.csv(bkgd.data) #read in teh background position data lon.lat
-	for (ii in 1:length(enviro.data)) { cat(ii,'of',length(enviro.data),'\n') #cycle through each of the environmental datasets and append the data
-		tasc = read.asc(enviro.data[ii]) #read in the envirodata
+	for (ii in 1:length(current.enviro.data)) { cat(ii,'of',length(current.enviro.data),'\n') #cycle through each of the environmental datasets and append the data
+		tasc = read.asc(current.enviro.data[ii]) #read in the envirodata
 		occur[,enviro.data.names[ii]] = extract.data(cbind(occur$lon,occur$lat),tasc) #extract envirodata for observations
 		if (!is.null(bkgd.data)) bkgd[,enviro.data.names[ii]] = extract.data(cbind(bkgd$lon,bkgd$lat),tasc) #extract envirodata for background data
 	}
@@ -57,14 +57,14 @@ saveModelProjection = function(out.model, model.name, projectiontime) {
 
 # function to get model object
 getModelObject = function(model.name) {
-	model.dir = paste(wd, "output_", model.name, "/", sep="")
+	model.dir = paste(wd, "output_", model.name, "/", sep=""); setwd(model.dir);
 	model.obj = tryCatch(get(load(file=paste(model.dir, "model.object.RData", sep=""))), error = err.null)	
 }
 
 # function to save evaluate output
 saveModelEvaluation = function(out.model, out.biomod.model) {
 	model.dir = paste(getwd(), "/", sep="")
-	save(out.model, file=paste(getwd(), "/dismo.eval.object.RData", sep=''))	# save the 'dismo::ModelEvalution' object
+	save(out.model, file=paste(model.dir, "dismo.eval.object.RData", sep=''))	# save the 'dismo::ModelEvalution' object
 	
 	# save all the model accuracy statistics provided in both dismo and biomod2
 	rownames(out.biomod.model) <- c("Testing.data","Cutoff","Sensitivity", "Specificity")
@@ -74,6 +74,9 @@ saveModelEvaluation = function(out.model, out.biomod.model) {
 	# save AUROC curve
 	png(file=paste(model.dir, "AUC.png", sep='')); plot(out.model, 'ROC'); dev.off()
 }
+
+# source my modified version of biomod2's Evaluate.models.R for consistent model accuracy statistics
+source("/home/jc140298/sprint2/my.Evaluate.models.R")
 
 ###run the models and store models
 #################################################################################
@@ -307,7 +310,7 @@ if (evaluate.bioclim) {
                                                           Obs = bioclim.obs))
                                 })
 		saveModelEvaluation(bioclim.eval, bioclim.combined.eval)	# save output
-		rm(list=c("bioclim.obj", "bioclim.eval", "bioclim.biodmod.eval")) #clean up the memory
+		rm(list=c("bioclim.obj", "bioclim.eval", "bioclim.combined.eval")) #clean up the memory
 	} else {
 		write(paste("FAIL!", species, "Cannot load bioclim.obj from", wd, "output_bioclim", sep=": "), stdout())
 	}

@@ -1,8 +1,8 @@
 #initial arguments used to define the inputs, models, outputs, etc
-wd = "/home/jc140298/bccvl/ABT/" #define the working directory - where to put the outputs
+wd = "/home/jc140298/sprint2/ABT/" #define the working directory - where to put the outputs
 species = "ABT"	#define the species of interest
-occur.data = "/home/jc140298/bccvl/ABT/occur.csv" #define the lon/lat of the observation records -- 2 column matrix of longitude and latitude
-bkgd.data = "/home/jc140298/bccvl/ABT/bkgd.csv" #define the the lon/lat of the background / pseudo absence points to use -- 2 column matrix of longitude and latitude.. use NULL if no bkgd needed
+occur.data = "/home/jc140298/sprint2/ABT/occur.csv" #define the lon/lat of the observation records -- 2 column matrix of longitude and latitude
+bkgd.data = "/home/jc140298/sprint2/ABT/bkgd.csv" #define the the lon/lat of the background / pseudo absence points to use -- 2 column matrix of longitude and latitude.. use NULL if no bkgd needed
 
 current.enviro.data = c("/home/jc165798/working/BCCVL/envirodata/climate_1990/bioclim_01.asc",
 	"/home/jc165798/working/BCCVL/envirodata/climate_1990/bioclim_04.asc",
