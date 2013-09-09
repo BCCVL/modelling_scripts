@@ -301,7 +301,7 @@ if (evaluate.bioclim) {
 		bioclim.eval = evaluate(p=occur, a=bkgd, model=bioclim.obj)	# evaluate model using dismo's evaluate
 		# need the predictions and observed values to create confusion matrices for accuracy statistics
 		bioclim.fit = c(bioclim.eval@presence, bioclim.eval@absence)
-		bioclim.obs = c(rep(1, nrow(occur)), rep(0, nrow(bkgd)))
+		bioclim.obs = c(rep(1, length(bioclim.eval@presence)), rep(0, length(bioclim.eval@absence)))
 		# get the model accuracy statistics using a modified version of biomod2's Evaluate.models.R
 		bioclim.combined.eval = sapply(model.accuracy,
 								function(x){
@@ -323,7 +323,7 @@ if (evaluate.brt) {
 		#	the function is defined outside of the dismo package
 		brt.eval = evaluate(p=occur, a=bkgd, model=brt.obj, n.trees=brt.obj$gbm.call$best.trees) # evaluate model
 		brt.fit = c(brt.eval@presence, brt.eval@absence)
-		brt.obs = c(rep(1, nrow(occur)), rep(0, nrow(bkgd)))
+		brt.obs = c(rep(1, length(brt.eval@presence)), rep(0, length(brt.eval@absence)))
 		# get the model accuracy statistics using a modified version of biomod2's Evaluate.models.R
 		brt.combined.eval = sapply(model.accuracy,
 								function(x){
