@@ -7,7 +7,7 @@ options(repos=r)
 
 #script to run to develop distribution models
 ###check if libraries are installed, install if necessary and then load them
-necessary=c("dismo","SDMTools", "gbm", "rgdal", "pROC") #list the libraries needed
+necessary=c("biomod2","SDMTools", "rgdal", "pROC") #list the libraries needed
 installed = necessary %in% installed.packages() #check if library is installed
 if (length(necessary[!installed]) >=1) {
     install.packages(necessary[!installed], dep = T) #if library is not installed, install it
