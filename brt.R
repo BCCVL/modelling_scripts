@@ -7,7 +7,7 @@ options(repos=r)
 
 #script to run to develop distribution models
 ###check if libraries are installed, install if necessary and then load them
-necessary=c("dismo","SDMTools", "gbm", "rgdal", "pROC") #list the libraries needed
+necessary=c("dismo","SDMTools", "gbm", "rgdal", "pROC", "R2HTML", "png") #list the libraries needed
 installed = necessary %in% installed.packages() #check if library is installed
 if (length(necessary[!installed]) >=1) {
     install.packages(necessary[!installed], dep = T) #if library is not installed, install it
@@ -20,7 +20,7 @@ for (lib in necessary) {
 #setwd(wd) #set the working directory
 populate.data = FALSE #variable to define if there is a need to generate occur & background environmental info
 if (file.exists(paste(wd, "/occur.RData", sep=""))
-    && file.exists(paste(wd, "/lbkgd.RData", sep=""))) {
+    && file.exists(paste(wd, "/bkgd.RData", sep=""))) {
     load(paste(wd, "/occur.RData", sep=""))
     load(paste(wd, "/bkgd.RData", sep="")) #if files already exist, load in the data
     if (!all(colnames(occur)==c('lon','lat',enviro.data.names))) {
@@ -54,21 +54,8 @@ if (is.null(enviro.data.future)) {
     future.climate.scenario = stack(enviro.data.future)
 }
 
-## Needed for tryCatch'ing:
-err.null <- function (e) return(NULL)
-
-# function to save projection output raster
-saveModelProjection = function(out.model, model.name, projectiontime) {
-    model.dir = paste(wd, "/output_", model.name, "/", sep="")
-    filename = paste(projectiontime, '.tif')
-    writeRaster(out.model, paste(model.dir, projectiontime, sep="/"), format="GTiff")
-}
-
-# function to get model object
-getModelObject = function(model.name) {
-    model.dir = paste(wd, "/output_", model.name, "/", sep="")
-    model.obj = tryCatch(get(load(file=paste(model.dir, "model.object.RData", sep=""))), error = err.null)
-}
+# source helper functions (err.null, getModelObject, checkModelLayers, saveModelProject)
+source(paste(function.path, "/my.Helper.Functions.R", sep=""))
 
 ###run the models and store models
 #############################################################################################
@@ -120,8 +107,9 @@ getModelObject = function(model.name) {
 # to be kept
 
 if (model.brt) {
-    outdir = paste(wd,'/output_brt/',sep=''); dir.create(outdir,recursive=TRUE); #create the output directory
-    brt.data = rbind(occur,bkgd); brt.data$pa = c(rep(1,nrow(occur)),rep(0,nrow(bkgd))) #setup the data as needed
+    outdir = paste(wd,'/output_brt',sep=''); dir.create(outdir,recursive=TRUE); #create the output directory
+    brt.data = rbind(occur[,c("lon", "lat", enviro.data.names)],bkgd[,c("lon", "lat", enviro.data.names)]) #setup the data as needed
+	brt.data$pa = c(rep(1,nrow(occur)),rep(0,nrow(bkgd))) #setup the data as needed
     brt = tryCatch(gbm.step(data=brt.data, gbm.x=which(names(brt.data) %in% enviro.data.names),
     gbm.y=which(names(brt.data)=='pa'),
     fold.vector = brt.fold.vector,
@@ -147,8 +135,7 @@ if (model.brt) {
     keep.fold.vector = brt.keep.fold.vector,
     keep.fold.fit = brt.keep.fold.fit), error = err.null) #run the algorithm
     if (!is.null(brt)) {
-        save(brt,file=paste(outdir,"model.object.RData",sep='')) #save out the model object
-        save(brt,file=paste(outdir,"model.object.Rascii",sep=''), ascii=TRUE) #save out the model object as ascii for Daniel
+        save(brt,file=paste(outdir,"/model.object.RData",sep='')) #save out the model object
         # NOTE the order of arguments in the predict function for brt; this is because
         # the function is defined outside of the dismo package
         brt.proj = predict(current.climate.scenario, brt, n.trees=brt$gbm.call$best.trees) # predict for CURRENT climate scenario
@@ -188,272 +175,6 @@ if (project.brt) {
         write(paste("FAIL!", species, "Cannot load brt.obj from", wd, "output_brt", sep=": "), stdout())
     }
 }
-
-######################################################################################
-# model accuracy helpers
-######################################################################################
-
-# function to save evaluate output
-saveModelEvaluation = function(out.model, out.biomod.model, model.name) {
-    model.dir = paste(wd, "/output_", model.name, "/", sep="")
-    save(out.model, file=paste(model.dir, "dismo.eval.object.RData", sep=''))	# save the 'dismo::ModelEvalution' object
-
-    # save all the model accuracy statistics provided in both dismo and biomod2
-    rownames(out.biomod.model) <- c("Testing.data","Cutoff","Sensitivity", "Specificity")
-    write.csv(t(round(out.biomod.model, digits=3)), file=paste(model.dir, "combined.modelEvaluation.csv", sep=""))
-    # EMG no guarantee these value are correct
-
-    # save AUROC curve
-
-    png(file=paste(model.dir, "AUC.png", sep=''));
-    plot(out.model, 'ROC');
-    dev.off()
-}
-
-my.Find.Optim.Stat <- function(Stat='TSS',Fit,Obs,Precision = 5, Fixed.thresh = NULL){
-    if(length(unique(Obs)) == 1 | length(unique(Fit)) == 1){
-        # warning("\nObserved or fited data contains only a value.. Evaluation Methods switched off\n",immediate.=T)
-        # best.stat <- cutoff <- true.pos <- sensibility <- true.neg <- specificity <- NA
-        warning("\nObserved or fited data contains a unique value.. Be carefull with this models predictions\n",immediate.=T)
-        #best.stat <- cutoff <- true.pos <- sensibility <- true.neg <- specificity <- NA
-    } #else {
-    if(Stat != 'ROC'){
-        StatOptimum <- my.getStatOptimValue(Stat)
-        if(is.null(Fixed.thresh)){ # test a range of threshold to get the one giving the best score
-            if(length(unique(Fit)) == 1){
-                valToTest <- unique(Fit)
-                valToTest <- round(c(mean(c(0,valToTest)), mean(c(1000,valToTest))))
-            } else{
-                mini <- max(min(quantile(Fit,0.05, na.rm=T), na.rm=T),0)
-                maxi <- min(max(quantile(Fit,0.95, na.rm=T), na.rm=T),1000)
-                # valToTest <- unique( round(c(seq(mini,maxi,length.out=100), mini, maxi)) )
-                # EMG no idea why the round() is here, it makes vals between 0 and 1 (ie bioclim) all 0
-                valToTest <- unique( c(seq(mini,maxi,length.out=100)))
-                # deal with unique value to test case
-                if(length(valToTest)<3){
-                    valToTest <- round(c(mean(0,mini), valToTest, mean(1000,maxi)))
-                }
-            }
-            # valToTest <- unique( c(seq(mini,maxi,by=Precision), mini, maxi) )
-        } else{
-            valToTest <- Fixed.thresh
-        }
-
-        calcStat <- sapply(lapply(valToTest, function(x){return(table(Fit>x,Obs))} ), my.calculate.stat, stat=Stat)
-
-        # scal on 0-1 ladder.. 1 is the best
-        calcStat <- 1 - abs(StatOptimum - calcStat)
-
-        best.stat <- max(calcStat, na.rm=T)
-
-        cutoff <- median(valToTest[which(calcStat==best.stat)]) # if several values are selected
-
-        misc <- table(Fit >= cutoff, Obs)
-        misc <- .contagency.table.check(misc)
-        true.pos <- misc['TRUE','1']
-        true.neg <- misc['FALSE','0']
-        specificity <- (true.neg * 100)/sum(misc[,'0'])
-        sensibility <- (true.pos * 100)/sum(misc[,'1'])
-    } else{
-        roc1 <- roc(Obs, Fit, percent=T)
-        roc1.out <- coords(roc1, "best", ret=c("threshold", "sens", "spec"))
-        best.stat <- as.numeric(auc(roc1))/100
-        cutoff <- as.numeric(roc1.out["threshold"])
-        sensibility <- as.numeric(roc1.out["sensitivity"])
-        specificity <- as.numeric(roc1.out["specificity"])
-    }
-  #}
-    return(cbind(best.stat,cutoff,sensibility,specificity))
-}
-
-my.getStatOptimValue <- function(stat){
-    if(stat == 'TSS') return(1)
-    if(stat == 'KAPPA') return(1)
-    if(stat == 'ACCURACY') return(1)
-    if(stat == 'BIAS') return(1)
-    if(stat == 'POD') return(1)
-    if(stat == 'FAR') return(0)
-    if(stat == 'POFD') return(0)
-    if(stat == 'SR') return(1)
-    if(stat == 'CSI') return(1)
-    if(stat == 'ETS') return(1)
-    if(stat == 'HK') return(1)
-    if(stat == 'HSS') return(1)
-    if(stat == 'OR') return(1000000)
-    if(stat == 'ORSS') return(1)
-
-    #dismo
-    if(stat == 'ODP') return(1)
-    # if(stat == 'CCR') return(1) # same as ACCURACY
-    # if(stat == 'TPR') return(1) # same as POD
-    if(stat == 'TNR') return(1)
-    if(stat == 'FPR') return(0)
-    if(stat == 'FNR') return(0)
-    # if(stat == 'PPP') return(1) # same as SR
-    if(stat == 'NPP') return(1)
-    if(stat == 'MCR') return(0)
-    if(stat == 'OR') return(1000000)
-    # if(stat == 'kappa') return(1) # same as KAPPA
-}
-
-my.calculate.stat <-
-    function(Misc, stat='TSS') {
-        # Contagency table checking
-        Misc <- .contagency.table.check(Misc)
-
-        # Defining Classification index
-        hits <- Misc['TRUE','1']
-        misses <- Misc['FALSE','1']
-        false_alarms <- Misc['TRUE','0']
-        correct_negatives <- Misc['FALSE','0']
-
-        total <- sum(Misc)
-        forecast_1 <- sum(Misc['TRUE',])
-        forecast_0 <- sum(Misc['FALSE',])
-        observed_1 <- sum(Misc[,'1'])
-        observed_0 <- sum(Misc[,'0'])
-
-        # Calculating choosen evaluating metric
-        if(stat=='TSS'){
-            return( (hits/(hits+misses)) + (correct_negatives/(false_alarms+correct_negatives)) -1 )
-        }
-
-        if(stat=='KAPPA'){
-            Po <- (1/total) * (hits + correct_negatives)
-            Pe <- ((1/total)^2) * ((forecast_1 * observed_1) + (forecast_0 * observed_0))
-            return( (Po - Pe) / (1-Pe) )
-        }
-
-        if(stat=='ACCURACY'){
-            return( (hits + correct_negatives) / total)
-        }
-
-        if(stat=='BIAS'){
-            return( (hits + false_alarms) / (hits + misses))
-        }
-
-        if(stat=='POD'){
-            return( hits / (hits + misses))
-        }
-
-        if(stat=='FAR'){
-            return(false_alarms/(hits+false_alarms))
-        }
-
-        if(stat=='POFD'){
-            return(false_alarms / (correct_negatives + false_alarms))
-        }
-
-        if(stat=='SR'){
-            return(hits / (hits + false_alarms))
-        }
-
-        if(stat=='CSI'){
-            return(hits/(hits+misses+false_alarms))
-        }
-
-        if(stat=='ETS'){
-            hits_rand <- ((hits+misses)*(hits+false_alarms)) / total
-            return( (hits-hits_rand) / (hits+misses+false_alarms-hits_rand))
-        }
-
-        # if(stat=='HK'){
-        # return((hits/(hits+misses)) - (false_alarms/(false_alarms + correct_negatives)))
-        # }
-
-        # if(stat=='HSS'){
-        # expected_correct_rand <- (1/total) * ( ((hits+misses)*(hits+false_alarms)) +
-        # ((correct_negatives + misses)*(correct_negatives+false_alarms)) )
-        # return((hits+correct_negatives-expected_correct_rand) / (total - expected_correct_rand))
-        # }
-
-        # if(stat=='OR'){
-        # return((hits*correct_negatives)/(misses*false_alarms))
-        # }
-
-        # if(stat=='ORSS'){
-        # return((hits*correct_negatives - misses*false_alarms) / (hits*correct_negatives + misses*false_alarms))
-        # }
-
-        # if(stat=="BOYCE"){
-        #
-        # }
-
-        #dismo
-        if(stat=='ODP'){
-            return((false_alarms + correct_negatives) / total)
-        }
-
-        # if(stat=='CCR'){
-        # return((hits + correct_negatives) / total)
-        # }
-
-        # if(stat=='TPR'){
-        # return(hits / (hits + misses))
-        # }
-
-        if(stat=='TNR'){
-            return(correct_negatives / (false_alarms + correct_negatives))
-        }
-
-        if(stat=='FPR'){
-            return(false_alarms / (false_alarms + correct_negatives))
-        }
-
-        if(stat=='FNR'){
-            return(misses / (hits + misses))
-        }
-
-        # if(stat=='PPP'){
-        # return(hits / (hits + false_alarms))
-        # }
-
-        if(stat=='NPP'){
-            return(correct_negatives / (misses + correct_negatives))
-        }
-
-        if(stat=='MCR'){
-            return((false_alarms + misses) / total)
-        }
-
-        if(stat=='OR'){
-            return((hits * correct_negatives) / (misses * false_alarms))
-        }
-
-        # if(stat=='kappa'){
-        # return(((hits + correct_negatives) - (((hits + misses)*(hits + false_alarms) + (false_alarms + correct_negatives)*(misses + correct_negatives)) / total)) /
-        # (total -(((hits + misses)*(hits + false_alarms) + (false_alarms + correct_negatives)*(misses + correct_negatives)) / total)))
-        # }
-    }
-
-.contagency.table.check <- function(Misc){
-    # Contagency table checking
-    if(dim(Misc)[1]==1){
-        if(row.names(Misc)[1]=="FALSE"){
-            Misc <- rbind(Misc, c(0,0))
-            rownames(Misc) <- c('FALSE','TRUE')
-        } else{
-            a <- Misc
-            Misc <- c(0,0)
-            Misc <- rbind(Misc, a)
-            rownames(Misc) <- c('FALSE','TRUE')
-        }
-    }
-
-    if(ncol(Misc) != 2 | nrow(Misc) !=2 ){
-        Misc = matrix(0, ncol=2, nrow=2, dimnames=list(c('FALSE','TRUE'), c('0','1')))
-    }
-
-    if((sum(colnames(Misc) %in% c('FALSE','TRUE','0','1')) < 2) | (sum(rownames(Misc) %in% c('FALSE','TRUE','0','1')) < 2) ){
-        stop("Unavailable contagency table given")
-    }
-
-    if('0' %in% rownames(Misc)) rownames(Misc)[which(rownames(Misc)=='0')] <- 'FALSE'
-    if('1' %in% rownames(Misc)) rownames(Misc)[which(rownames(Misc)=='1')] <- 'TRUE'
-
-    return(Misc)
-}
-
 
 ###############
 #
@@ -516,8 +237,21 @@ if (evaluate.brt) {
                                           Obs = brt.obs))
             })
         saveModelEvaluation(brt.eval, brt.combined.eval, "brt") # save output
+		
+		# create response curves
+		createMarginalResponseCurves(brt.obj, "brt")
+
+		# calculate variable importance (like biomod2, using correlations between predictions)
+		calculateVariableImpt(brt.obj, "brt", 3)
+		
+		# calculate variable importance (like maxent, using decrease in AUC)
+		calculatePermutationVarImpt(brt.obj, brt.eval, "brt")
+				
+		# create HTML file with accuracy measures
+		generateHTML(species, paste(wd, "/output_brt", sep='')) 
+		
         rm(list=c("brt.obj", "brt.eval", "brt.combined.eval")) #clean up the memory
     } else {
         write(paste("FAIL!", species, "Cannot load brt.obj from", wd, "output_brt", sep=": "), stdout())
 	}
-}
+} # end if brt

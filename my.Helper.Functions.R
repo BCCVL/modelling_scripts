@@ -1,112 +1,25 @@
-src/org/bccvl/compute/rscripts/domain.R# set CRAN mirror in case we need to download something
-# TODO: this should be done on demand or on user basis...
-r <- getOption("repos")
-r["CRAN"] <- "http://cran.ms.unimelb.edu.au/"
-options(repos=r)
-# TODO: alse creating and populating add on package location is something that should not be done system wide
-
-#script to run to develop distribution models
-###check if libraries are installed, install if necessary and then load them
-necessary=c("dismo","SDMTools", "rgdal", "pROC") #list the libraries needed
-installed = necessary %in% installed.packages() #check if library is installed
-if (length(necessary[!installed]) >=1) {
-    install.packages(necessary[!installed], dep = T) #if library is not installed, install it
-}
-for (lib in necessary) {
-    library(lib,character.only=T) #load the libraries
-}
-
-###read in the necessary observation, background and environmental data
-#setwd(wd) #set the working directory
-populate.data = FALSE #variable to define if there is a need to generate occur & background environmental info
-if (file.exists(paste(wd, "/occur.RData", sep=""))
-    && file.exists(paste(wd, "/lbkgd.RData", sep=""))) {
-    load(paste(wd, "/occur.RData", sep=""))
-    load(paste(wd, "/bkgd.RData", sep="")) #if files already exist, load in the data
-    if (!all(colnames(occur)==c('lon','lat',enviro.data.names))) {
-        populate.data=TRUE #not the right data, we need to repopulate it
-    }
-} else {
-    populate.data=TRUE # data does not exist, we need to generate it
-}
-if (populate.data) {
-    occur = read.csv(occur.data) #read in the observation data lon/lat
-    if (!is.null(bkgd.data)) {
-        bkgd = read.csv(bkgd.data) #read in teh background position data lon.lat
-    }
-    for (ii in 1:length(enviro.data.current)) {
-        cat(ii,'of',length(enviro.data.current),'\n') #cycle through each of the environmental datasets and append the data
-        #tasc = read.asc(enviro.data.current[ii]) #read in the envirodata
-        tasc = readGDAL(enviro.data.current[ii]) #read in the envirodata
-        occur[,enviro.data.names[ii]] = extract.data(cbind(occur$lon,occur$lat),tasc) #extract envirodata for observations
-        if (!is.null(bkgd.data)) bkgd[,enviro.data.names[ii]] = extract.data(cbind(bkgd$lon,bkgd$lat),tasc) #extract envirodata for background data
-    }
-    save(occur,file=paste(wd, "/occur.RData", sep="")) #write out the raw data for analysis
-    if (!is.null(bkgd.data)) {
-        save(bkgd,file=paste(wd, "/bkgd.RData", sep="")) #write out the raw data for analysis
-    }
-}
-
-current.climate.scenario = stack(enviro.data.current)
-if (is.null(enviro.data.future)) {
-    project.domain=FALSE
-} else {
-    future.climate.scenario = stack(enviro.data.future)
-}
+#helper functions for BCCVL model, project, and evaulate scripts
 
 ## Needed for tryCatch'ing:
 err.null <- function (e) return(NULL)
+
+# function to get model object
+getModelObject = function(model.name) {
+	model.dir = paste(wd, "/output_", model.name, sep="")
+	model.obj = tryCatch(get(load(file=paste(model.dir, "/model.object.RData", sep=""))), error = err.null)	
+}
 
 # function to save projection output raster
 saveModelProjection = function(out.model, model.name, projectiontime) {
     model.dir = paste(wd, "/output_", model.name, "/", sep="")
     filename = paste(projectiontime, '.tif')
-    writeRaster(out.model, paste(model.dir, projectiontime, sep="/"), format="GTiff")
+    writeRaster(out.model, paste(model.dir, projectiontime, sep="/"), format="GTiff", options="COMPRESS=LZW")
 }
 
-# function to get model object
-getModelObject = function(model.name) {
-    model.dir = paste(wd, "/output_", model.name, "/", sep="")
-    model.obj = tryCatch(get(load(file=paste(model.dir, "model.object.RData", sep=""))), error = err.null)
-}
+######################################################################################
+# model projection
+######################################################################################
 
-###run the models and store models
-#############################################################################################
-#
-# GEOGRAPHIC MODELS - use the geographic location of known occurrences
-#
-#############################################################################################
-
-############### Spatial-only models for presence data ###############
-
-###############
-#
-# CIRCLES
-#
-###############
-
-# circles(p, ...)
-# p point locations (presence), two column matrix, data.frame or SpatialPoints* object
-# d the radius of each circle in meters; a single number or a vector with elements corresponding to
-#	rows in 'p'; if missing the diameter is computed from the inter-point distance
-# n how many vertices in the circle? default is 360
-# lonlat are these longitude/latitude data? default value is false
-# r radius of the earth; only relevant for longitude/latitude data; default is 6378137 m
-
-if (model.circles) {
-	outdir = paste(wd,'output_circles/',sep=''); dir.create(outdir,recursive=TRUE); #create the output directory
-	cc = tryCatch(circles(p=occur[,c('lon','lat')], lonlat=TRUE), error = err.null) #run circles 
-	if (!is.null(cc)) {	
-		save(cc,file=paste(outdir,"model.object.RData",sep='')) #save out the model object
-		cc.proj = predict(cc, current.climate.scenario, ext=opt.ext)   # predict for given climate scenario
-		saveModelProjection(cc.proj, "circles", "current") # save output
-		rm(list=c("cc", "cc.proj")); #clean up memory
-	} else {
-		write(paste("FAIL!", species, "Cannot create circles model object", sep=": "), stdout())
-	}
-}
-
-# functions for assitance with projections
 # function to check that the environmental layers used to project the  model are the same as the ones used
 # 	to create the model object 
 checkModelLayers = function(model.obj) {
@@ -116,19 +29,19 @@ checkModelLayers = function(model.obj) {
 	if (inherits(model.obj, "DistModel")) { # dismo package
 		model.layers = colnames(model.obj@presence)
 	} else if (inherits(model.obj, "gbm")) { # brt package
-		model.layers = summary(brt.obj)$var
+		model.layers = summary(out.model)$var
 	} else if (inherits(model.obj, "BIOMOD.models.out")) { # biomod package
 		model.layers = model.obj@expl.var.names
 	}
 	
-	# get the names of the climater scenario's env layers
+	# get the names of the climate scenario's env layers
 	pred.layers = names(future.climate.scenario)
 	
 	# check if the env layers were in the original model
     if(sum(!(pred.layers %in% model.layers)) > 0 ){
 		message("Dropping environmental layers not used in the original model creation...")
 		# create a new list of env predictors by dropping layers not in the original model
-		new.predictors = climate.scenario
+		new.predictors = future.climate.scenario
 		for (pl in pred.layers) {
 			if (!(pl %in% model.layers)) {
 				new.predictors = dropLayer(new.predictors, pl)
@@ -140,55 +53,22 @@ checkModelLayers = function(model.obj) {
 	}
 }
 
-###############
-#
-# predict(object, x, ext=NULL, filename="", progress='text', ...)
-#
-# object A fitted model of class Bioclim, Domain, MaxEnt, ConvexHull, or Mahalanobis (classes that inherit from DistModel)
-# x A Raster* object or a data.frame
-# ext An extent object to limit the prediction to a sub-region of 'x'. Or an object that can be coerced to an Extent object by extent; such as a Raster* or Spatial* object
-# filename Output filename for a new raster; if NA the result is not written to a file but returned with the RasterLayer object, in the data slot
-# progress Character. Valid values are "" (no progress bar), "text" and "windows" (on that platform only)
-# ... Additional model specific arguments. And additional arguments for file writing as for writeRaster
-#
-# For maxent models, there is an additional argument 'args' used to pass arguments (options) to the maxent software.
-# For bioclim models, there is an additional argument 'tails' which you can use to ignore the left or right tail of the percentile distribution for a variable.
-# For geoDist models, there is an additional argument fun that allows you to use your own (inverse) distance function, and argument scale=1 that allows you to scale
-# the values (distances smaller than this value become one, and the others are divided by this value before computing the inverse distance).
-# For spatial predictions with BRT, randomForest, etc., see 'predict' in the Raster package
-#
-###############
-
-###project the models onto FUTURE climate and save raster files
-if (project.circles) {
-	circles.obj = getModelObject("circles") # get the model object
-	if (!is.null(circles.obj)) {
-		predictors = checkModelLayers(circles.obj)
-		circles.proj = predict(circles.obj, predictors, ext=opt.ext) # predict for given climate scenario
-		saveModelProjection(circles.proj, "circles", "future") 	# save output
-		rm(list=c("circles.obj", "circles.proj")) #clean up the memory
-	} else {
-		write(paste("FAIL!", species, "Cannot load circles.obj from", wd, "output_circles", sep=": "), stdout())
-	}
-}
-
 ######################################################################################
-# model accuracy helpers
+# model accuracy
 ######################################################################################
 
 # function to save evaluate output
 saveModelEvaluation = function(out.model, out.biomod.model, model.name) {
-    model.dir = paste(wd, "/output_", model.name, "/", sep="")
-    save(out.model, file=paste(model.dir, "dismo.eval.object.RData", sep=''))	# save the 'dismo::ModelEvalution' object
+    model.dir = paste(wd, "/output_", model.name, sep="")
+    save(out.model, file=paste(model.dir, "/dismo.eval.object.RData", sep=''))	# save the 'dismo::ModelEvalution' object
 
     # save all the model accuracy statistics provided in both dismo and biomod2
     rownames(out.biomod.model) <- c("Testing.data","Cutoff","Sensitivity", "Specificity")
-    write.csv(t(round(out.biomod.model, digits=3)), file=paste(model.dir, "combined.modelEvaluation.csv", sep=""))
+    write.csv(t(round(out.biomod.model, digits=3)), file=paste(model.dir, "/combined.modelEvaluation.csv", sep=""))
     # EMG no guarantee these value are correct
 
     # save AUROC curve
-
-    png(file=paste(model.dir, "AUC.png", sep=''));
+    png(file=paste(model.dir, "/AUC.png", sep=''));
     plot(out.model, 'ROC');
     dev.off()
 }
@@ -440,7 +320,7 @@ my.calculate.stat <-
 # function to generate marginal (mean) response curves for dismo models
 # i.e., hold all but one predictor variable to its mean value and recalculate model predictions
 createMarginalResponseCurves = function(out.model, model.name) {
-	model.dir = paste(getwd(), "/", sep="")
+    model.dir = paste(wd, "/output_", model.name, sep="")
 
 	# get the enviromental variables and values used to create the model
 	if (model.name == "brt") {
@@ -462,7 +342,7 @@ createMarginalResponseCurves = function(out.model, model.name) {
 	
 		# allow each environmental variable to vary, keeping other variable values at average, and predict suitability
 		for (j in 1:ncol(mean.values)) {
-			range.values = seq(min(model.values[,j]), max(model.values[,j]), length.out=100)
+			range.values = seq(min(model.values[,j], na.rm=TRUE), max(model.values[,j], na.rm=TRUE), length.out=100)
 			temp.data = mean.values
 			temp.data[,j] = range.values
 			if (model.name == "brt") {
@@ -474,7 +354,7 @@ createMarginalResponseCurves = function(out.model, model.name) {
 			
 			# create separate file for each response curve
 			save.name = env.vars[j]
-			png(file=paste(model.dir, save.name, "_response.png", sep=""))
+			png(file=paste(model.dir, "/", save.name, "_response.png", sep=""))
 				plot(range.values, new.predictions, ylim=c(0,1), xlab="", ylab="", main=save.name, type="l")
 				rug(model.values[,j])
 			dev.off()
@@ -488,7 +368,7 @@ createMarginalResponseCurves = function(out.model, model.name) {
 # i.e., hold all but one predictor variable to its actual values, resample that one predictor and recalculate model predictions
 calculateVariableImpt = function(out.model, model.name, num_samples) {
 # EMG num_samples should be same as biomod.VarImport arg set in 01.init.args.model.current.R 
-	model.dir = paste(getwd(), "/", sep="")
+    model.dir = paste(wd, "/output_", model.name, sep="")
 	
 	# get the enviromental variables and values used to create the model
 	# EMG this is duplicated from above, should be able to combine
@@ -542,7 +422,7 @@ calculateVariableImpt = function(out.model, model.name, num_samples) {
 		# calculate mean variable importance, normalize to percentages, and write results
 		varimpt.out[,num_samples+1] = round(rowMeans(varimpt.out, na.rm=TRUE), digits=3)
 		varimpt.out[,num_samples+2] = round((varimpt.out[,num_samples+1]/sum(varimpt.out[,num_samples+1]))*100, digits=0)
-		write.csv(varimpt.out, file=paste(getwd(), "/biomod2_like_VariableImportance.csv", sep=""))
+		write.csv(varimpt.out, file=paste(model.dir, "/biomod2_like_VariableImportance.csv", sep=""))
 	} else {
 		write(paste(species, ": Cannot calculate variable importance for ", model.name, "object", sep=" "), stdout())
 	}
@@ -551,8 +431,7 @@ calculateVariableImpt = function(out.model, model.name, num_samples) {
 # function to calculate variable importance values for dismo models based on Maxent's decrease in AUC 
 # i.e., hold all but one predictor variable to its original values, resample that one predictor and recalculate model AUC
 calculatePermutationVarImpt = function(out.model, model.eval, model.name) {
-
-	model.dir = paste(getwd(), "/", sep="")
+    model.dir = paste(wd, "/output_", model.name, sep="")
 	
 	# get the enviromental variables and values used to create the model
 	# EMG this is duplicated from above, should be able to combine or find an easier way to determine
@@ -582,20 +461,30 @@ calculatePermutationVarImpt = function(out.model, model.eval, model.name) {
 		# create a copy of the occurrence and background environmental data
 		sample.p = p.swd[,env.vars]
 		sample.a = a.swd[,env.vars]
-			
+
+		# check for and remove any NA's present in the data
+		no.na.sample.p = na.omit(sample.p); no.na.sample.a = na.omit(sample.a)
+		if (nrow(no.na.sample.p) != nrow(sample.p)) {
+			write(paste("calculatePermutationVarImpt(): NA's were removed from presence data!"), stdout())
+		}
+		if (nrow(no.na.sample.a) != nrow(sample.a)) {
+			write(paste("calculatePermutationVarImpt(): NA's were removed from absence data!"), stdout())
+		}
+		
 		# for each predictor variable 
 		for (v in 1:length(env.vars)) {
-					
-			# resample from that variables' values, keeping other variable values the same, and 
-			sample.p[,v] = sample(x=sample.p[,v], replace=FALSE)
-			sample.a[,v] = sample(x=sample.a[,v], replace=FALSE)
-
-			# re-evaluate model with sampled env values
+		
+			# resample from that variables' values, keeping other variable values the same 
+			no.na.sample.p[,v] = sample(x=no.na.sample.p[,v], replace=FALSE)
+			no.na.sample.a[,v] = sample(x=no.na.sample.a[,v], replace=FALSE)
+			
+			# re-evaluate model with sampled env values and NA omitted p/a
 			if (model.name == "brt") {
-				sample.eval = evaluate(p=sample.p, a=sample.a, model=brt.obj, n.trees=brt.obj$gbm.call$best.trees)
+				sample.eval = evaluate(p=no.na.sample.p, a=no.na.sample.a, model=out.model, n.trees=out.model$gbm.call$best.trees)				
 			} else {
-				sample.eval = evaluate(p=sample.p, a=sample.a, model=out.model)
+				sample.eval = evaluate(p=no.na.sample.p, a=no.na.sample.a, model=out.model)
 			}
+			
 			# get the new auc
 			permvarimpt.out[v,"sample.auc"] = round(sample.eval@auc, digits=3)
 		}
@@ -608,85 +497,33 @@ calculatePermutationVarImpt = function(out.model, model.eval, model.name) {
 			}
 		}
 		permvarimpt.out[,"percent"] = round((permvarimpt.out[,"change.auc"]/sum(permvarimpt.out[,"change.auc"]))*100, digits=0)
-		write.csv(permvarimpt.out, file=paste(getwd(), "/maxent_like_VariableImportance.csv", sep=""))
+		write.csv(permvarimpt.out, file=paste(model.dir, "/maxent_like_VariableImportance.csv", sep=""))
 	} else {
 		write(paste(species, ": Cannot calculate maxent-like variable importance for ", model.name, "object", sep=" "), stdout())
 	}
 }
 
-###############
-#
-# evaluate(p, a, model, x, tr, ...)
-#
-# p presence points (x and y coordinate or SpatialPoints* object)
-# Or, if x is missing, values at presence points (EMG: values returned by a predict())
-# Or, a matrix with values to compute predictions for
-# a absence points (x and y coordinate or SpatialPoints* object)
-# Or, if x is missing, values at absence points (EMG: values returned by a predict())
-# Or, a matrix with values to compute predictions for
-# model any fitted model, including objects inheriting from 'DistModel'; not used when x is missing
-# x Optional. Predictor values (object of class Raster*). If present, p and a are interpreted
-# as (spatial) points (EMG: lon/lat)
-# tr Optional. a vector of threshold values to use for computing the confusion matrices
-# ... Additional arguments for the predict function (EMG: evaluate() calls predict())
-#
-# 'ModelEvaluation' output based on Fielding and Bell (1997) with attributes:
-# presence - presence data used
-# absence - absence data used
-# np - number of presence points
-# na - number of absence points
-# auc - Area under the receiver operator (ROC) curve
-# pauc - p-value for the AUC (for the Wilcoxon test W statistic
-# cor - Correlation coefficient
-# pcor - p-value for correlation coefficient
-# t - vector of thresholds used to compute confusion matrices
-# confusion - confusion matrices
-# prevalence - Prevalence
-# ODP - Overall diagnostic power
-# CCR - Correct classification rate
-# TPR - True positive rate
-# TNR - True negative rate
-# FPR - False positive rate
-# FNR - False negative rate
-# PPP - Positive predictive power
-# NPP - Negative predictive power
-# MCR - Misclassification rate
-# OR - Odds-ratio
-# kappa - Cohen's kappa
-#
-###############
+# function to create HTML file with accuracy measures
+generateHTML = function(sp.name, outputdir) {
 
-# model accuracy statistics - combine stats from dismo and biomod2 for consistent output
-model.accuracy = c(dismo.eval.method, biomod.models.eval.meth)
+	setwd(outputdir)
 
-###evaluate the models and save the outputs
-if (evaluate.circles) {
-	circles.obj = getModelObject("circles") # get the model object
-	if (!is.null(circles.obj)) {
-		circles.eval = evaluate(model=circles.obj, p=occur[c("lon","lat")], 
-			a=bkgd[c("lon","lat")]) # evaluate model using dismo's evaluate
-		
-		# need predictions and observed values to create confusion matrices for accuracy statistics
-		circles.fit = c(circles.eval@presence, circles.eval@absence)
-		circles.obs = c(rep(1, length(circles.eval@presence)), rep(0, length(circles.eval@absence)))
+	# read in model outputs
+	auccurve = readPNG(paste(outputdir, "/AUC.png", sep=""))
+	accuracystats = read.csv(paste(outputdir, "/combined.modelEvaluation.csv", sep=""),	row.names=c(1))
 
-		# get the model accuracy statistics using a modified version of biomod2's Evaluate.models.R
-		circles.combined.eval = sapply(model.accuracy, function(x){
-			return(my.Find.Optim.Stat(Stat = x, Fit = circles.fit, Obs = circles.obs))
-		})
-		saveModelEvaluation(circles.eval, circles.combined.eval)	# save output
-						
-		# create response curves
-		createMarginalResponseCurves(circles.obj, "circles")
+	# create the output file 
+	target <- HTMLInitFile(outdir=outputdir, filename=paste(sp.name,"_output", sep=""), BackGroundColor="#CCCCCC")
 
-		# calculate variable importance (like biomod2, using correlations between predictions)
-		calculateVariableImpt(circles.obj, "circles", 3)
-		
-		# calculate variable importance (like maxent, using decrease in AUC)
-		calculatePermutationVarImpt(circles.obj, circles.eval, "circles")
-		
-		rm(list=c("circles.obj", "circles.eval", "circles.combined.eval")) #clean up the memory
-	} else {
-		write(paste("FAIL!", species, "Cannot load circles.obj from", wd, "output_circles", sep=": "), stdout())
-	}
+	# add content
+	HTML(paste("<center><br><H1>Model Output for ", sp.name, sep=""), file=target)
+
+	HTML("<br><H2>AUC:ROC curve", file=target)
+	HTMLInsertGraph("AUC.png", file=target)
+
+	HTML("<br><H2>Accuracy measures",file=target)
+	HTML(accuracystats, file=target)
+
+	# close the file
+	HTMLEndFile()
 }
