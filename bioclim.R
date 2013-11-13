@@ -82,8 +82,7 @@ if (model.bioclim) {
     if (!all(enviro.data.type=="continuous")) {
         warning("bioclim not run because categorical data cannot be used")
     } else {
-        outdir = paste(wd,'/output_bioclim',sep='')
-        dir.create(outdir,recursive=TRUE) #create the output directory
+        outdir = paste(wd,'/output_bioclim',sep=''); dir.create(outdir,recursive=TRUE) #create the output directory
         bc = tryCatch(bioclim(x=occur[,enviro.data.names]), error = err.null) #run bioclim with matrix of enviro data
         if (!is.null(bc)) {
             save(bc, file=paste(outdir,"/model.object.RData",sep='')) #save out the model object

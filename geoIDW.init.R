@@ -24,6 +24,9 @@ enviro.data.current = {{ strvector(enviro['data']) }} #define the current enviro
 enviro.data.type = {{ strvector(enviro['type']) }} #type in terms of continuous or categorical
 enviro.data.future = {{ strvector(future['data']) }} #define the future enviro data to use
 
+# define path to helper functions
+function.path = "/home/jc140298/modelling_scripts"
+
 model.geoIDW = TRUE #boolean to run inverse distance weighted algorithm
 project.geoIDW = TRUE #boolean to project inverse distance weighted algorithm
 evaluate.geoIDW = TRUE #boolean to evaluate inverse distance weighted algorithm

@@ -7,7 +7,7 @@ options(repos=r)
 
 #script to run to develop distribution models
 ###check if libraries are installed, install if necessary and then load them
-necessary=c("biomod2","SDMTools", "rgdal", "pROC") #list the libraries needed
+necessary=c("biomod2","SDMTools", "rgdal", "pROC", "R2HTML", "png") #list the libraries needed
 installed = necessary %in% installed.packages() #check if library is installed
 if (length(necessary[!installed]) >=1) {
     install.packages(necessary[!installed], dep = T) #if library is not installed, install it
@@ -20,7 +20,7 @@ for (lib in necessary) {
 #setwd(wd) #set the working directory
 populate.data = FALSE #variable to define if there is a need to generate occur & background environmental info
 if (file.exists(paste(wd, "/occur.RData", sep=""))
-    && file.exists(paste(wd, "/lbkgd.RData", sep=""))) {
+    && file.exists(paste(wd, "/bkgd.RData", sep=""))) {
     load(paste(wd, "/occur.RData", sep=""))
     load(paste(wd, "/bkgd.RData", sep="")) #if files already exist, load in the data
     if (!all(colnames(occur)==c('lon','lat',enviro.data.names))) {
@@ -56,21 +56,8 @@ if (is.null(enviro.data.future)) {
 # get the name of the scenario for use during projection
 es.name=basename(enviro.data.current)
 
-## Needed for tryCatch'ing:
-err.null <- function (e) return(NULL)
-
-# function to save projection output raster
-saveModelProjection = function(out.model, model.name, projectiontime) {
-    model.dir = paste(wd, "/output_", model.name, "/", sep="")
-    filename = paste(projectiontime, '.tif')
-    writeRaster(out.model, paste(model.dir, projectiontime, sep="/"), format="GTiff")
-}
-
-# function to get model object
-getModelObject = function(model.name) {
-    model.dir = paste(wd, "/output_", model.name, "/", sep="")
-    model.obj = tryCatch(get(load(file=paste(model.dir, "model.object.RData", sep=""))), error = err.null)
-}
+# source helper functions (err.null, getModelObject, checkModelLayers, saveModelProject)
+source(paste(function.path, "/my.Helper.Functions.R", sep=""))
 
 ###run the models and store models
 ############### BIOMOD2 Models ###############
@@ -141,7 +128,7 @@ formatBiomodData = function() {
 #	Other possibilities are mars and bruto. For Penalized Discriminant analysis gen.ridge is appropriate.
 
 if (model.fda) {
-	outdir = paste(wd,'output_fda/',sep=''); dir.create(outdir,recursive=TRUE); #create the output directory
+	outdir = paste(wd,'/output_fda',sep=''); dir.create(outdir,recursive=TRUE); #create the output directory
 	setwd(outdir) # set the working directory (where model results will be stored)
 	myBiomodData = formatBiomodData() # 1. Format the data
 	myBiomodOptions <- BIOMOD_ModelingOptions(FDA = fda.BiomodOptions) # 2. Define the model options
@@ -152,7 +139,7 @@ if (model.fda) {
 		rescal.all.models = biomod.rescal.all.models, do.full.models = biomod.do.full.models, 
 		modeling.id = biomod.modeling.id)
 	if (!is.null(myBiomodModelOut.fda)) {		
-		save(myBiomodModelOut.fda, file=paste(outdir,"model.object.RData",sep='')) #save out the model object
+		save(myBiomodModelOut.fda, file=paste(outdir,"/model.object.RData",sep='')) #save out the model object
 		# predict for current climate scenario
 		fda.proj.c = BIOMOD_Projection(modeling.output=myBiomodModelOut.fda, new.env=current.climate.scenario, proj.name=es.name, 
 			xy.new.env = biomod.xy.new.env,	selected.models = biomod.selected.models, binary.meth = biomod.binary.meth, 
@@ -163,39 +150,6 @@ if (model.fda) {
 	}
 }
 
-# functions for assitance with projections
-# function to check that the environmental layers used to project the  model are the same as the ones used
-# 	to create the model object 
-checkModelLayers = function(model.obj) {
-
-	message("Checking environmental layers used for projection")
-	# get the names of the environmental layers from the original model
-	if (inherits(model.obj, "DistModel")) { # dismo package
-		model.layers = colnames(model.obj@presence)
-	} else if (inherits(model.obj, "gbm")) { # brt package
-		model.layers = summary(brt.obj)$var
-	} else if (inherits(model.obj, "BIOMOD.models.out")) { # biomod package
-		model.layers = model.obj@expl.var.names
-	}
-	
-	# get the names of the climater scenario's env layers
-	pred.layers = names(future.climate.scenario)
-	
-	# check if the env layers were in the original model
-    if(sum(!(pred.layers %in% model.layers)) > 0 ){
-		message("Dropping environmental layers not used in the original model creation...")
-		# create a new list of env predictors by dropping layers not in the original model
-		new.predictors = climate.scenario
-		for (pl in pred.layers) {
-			if (!(pl %in% model.layers)) {
-				new.predictors = dropLayer(new.predictors, pl)
-			}	
-		}
-		return(new.predictors)
-	} else {
-		return(future.climate.scenario)
-	}
-}
 
 ############### BIOMOD2 Models ###############
 ###############
@@ -237,7 +191,7 @@ checkModelLayers = function(model.obj) {
 
 if (project.fda) {
 	fda.obj = getModelObject("fda") # get the model object
-	outdir = paste(wd,'output_fda/',sep=''); setwd(outdir) #set the working directory
+	outdir = paste(wd,'/output_fda',sep=''); setwd(outdir) #set the working directory
 	if (!is.null(fda.obj)) {
 		predictors = checkModelLayers(fda.obj)
 		fda.proj = BIOMOD_Projection(modeling.output=fda.obj, new.env=predictors, proj.name=es.name, 
@@ -252,56 +206,13 @@ if (project.fda) {
 	}
 }
 
+
 ######################################################################################
-# model accuracy helpers
+# evaluate
 ######################################################################################
 
 # model accuracy statistics - combine stats from dismo and biomod2 for consistent output
 model.accuracy = c(dismo.eval.method, biomod.models.eval.meth)
-
-# function to save evaluate output
-saveBIOMODModelEvaluation = function(loaded.name, biomod.model) {
-	# get and save the model evaluation statistics
-	# EMG these must specified during model creation with the arg "models.eval.meth"
-	evaluation = getModelsEvaluations(biomod.model)
-	write.csv(evaluation, file=paste(getwd(), "/biomod2.modelEvaluation.txt", sep=""))
-
-	# get the model predictions and observed values
-	predictions = getModelsPrediction(biomod.model); obs = getModelsInputData(biomod.model, "resp.var");
-
-	# get the model accuracy statistics using a modified version of biomod2's Evaluate.models.R
-	combined.eval = sapply(model.accuracy, function(x){
-		return(my.Find.Optim.Stat(Stat = x, Fit = predictions, Obs = obs))
-	})
-	# save all the model accuracy statistics provided in both dismo and biomod2
-	rownames(combined.eval) <- c("Testing.data","Cutoff","Sensitivity", "Specificity")
-	write.csv(t(round(combined.eval, digits=3)), file=paste(getwd(), "/combined.modelEvaluation.csv", sep=""))
-		
-	# save AUC curve
-	require(pROC, quietly=T)
-    roc1 <- roc(as.numeric(obs), as.numeric(predictions), percent=T)
-	png(file=paste(getwd(), "/pROC.png", sep=''))
-	plot(roc1, main=paste("AUC=",round(auc(roc1)/100,3),sep=""), legacy.axes=TRUE)
-	dev.off()
-	
-	# get and save the variable importance estimates
-	variableImpt = getModelsVarImport(biomod.model)
-	if (!is.na(variableImpt)) {
-	#EMG Note this will throw a warning message if variables (array) are returned	
-		write.csv(variableImpt, file=paste(getwd(), "/variableImportance.txt", sep=""))
-	} else {
-		message("VarImport argument not specified during model creation!")
-		#EMG must create the model with the arg "VarImport" != 0
-	}
-
-	# save response curves (Elith et al 2005)
-	png(file=paste(getwd(), "/mean_response_curves.png", sep=''))
-		test=response.plot2(models = loaded.name, Data = getModelsInputData(biomod.model,"expl.var"),
-			show.variables = getModelsInputData(biomod.model,"expl.var.names"), fixed.var.metric = "mean") 
-			#, data_species = getModelsInputData(biomod.model,"resp.var"))
-			# EMG need to investigate why you would want to use this option - uses presence data only
-	dev.off()
-}
 
 if (evaluate.fda) {	
 	fda.obj = getModelObject("fda") # get the model object

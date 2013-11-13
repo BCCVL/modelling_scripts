@@ -24,6 +24,9 @@ enviro.data.current = {{ strvector(enviro['data']) }} #define the current enviro
 enviro.data.type = {{ strvector(enviro['type']) }} #type in terms of continuous or categorical
 enviro.data.future = {{ strvector(future['data']) }} #define the future enviro data to use
 
+# define path to helper functions
+function.path = "/home/jc140298/modelling_scripts"
+
 model.rf = TRUE #boolean to run random forest algorithm
 project.rf = TRUE #boolean to project random forest algorithm
 evaluate.rf = TRUE #boolean to evaluate random forest algorithm

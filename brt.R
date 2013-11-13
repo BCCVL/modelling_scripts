@@ -167,14 +167,17 @@ if (model.brt) {
 if (project.brt) {
     brt.obj = getModelObject("brt") # get the model object
     if (!is.null(brt.obj)) {
+		predictors = checkModelLayers(brt.obj)
         # NOTE the order of arguments in the predict function for brt; this is because
         # the function is defined outside of the dismo package
         brt.proj = predict(future.climate.scenario, brt.obj, n.trees=brt.obj$gbm.call$best.trees) # predict for given climate scenario
         saveModelProjection(brt.proj, "brt", "future") # save output
+		rm(list=c("brt.obj", "brt.proj")) #clean up the memory
     } else {
         write(paste("FAIL!", species, "Cannot load brt.obj from", wd, "output_brt", sep=": "), stdout())
     }
 }
+
 
 ###############
 #

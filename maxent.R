@@ -7,7 +7,7 @@ options(repos=r)
 
 #script to run to develop distribution models
 ###check if libraries are installed, install if necessary and then load them
-necessary=c("dismo","SDMTools", "rgdal", "pROC") #list the libraries needed
+necessary=c("dismo","SDMTools", "rgdal", "pROC", "R2HTML", "png") #list the libraries needed
 installed = necessary %in% installed.packages() #check if library is installed
 if (length(necessary[!installed]) >=1) {
     install.packages(necessary[!installed], dep = T) #if library is not installed, install it
@@ -20,7 +20,7 @@ for (lib in necessary) {
 #setwd(wd) #set the working directory
 populate.data = FALSE #variable to define if there is a need to generate occur & background environmental info
 if (file.exists(paste(wd, "/occur.RData", sep=""))
-    && file.exists(paste(wd, "/lbkgd.RData", sep=""))) {
+    && file.exists(paste(wd, "/bkgd.RData", sep=""))) {
     load(paste(wd, "/occur.RData", sep=""))
     load(paste(wd, "/bkgd.RData", sep="")) #if files already exist, load in the data
     if (!all(colnames(occur)==c('lon','lat',enviro.data.names))) {
@@ -52,22 +52,6 @@ if (is.null(enviro.data.future)) {
     project.brt=FALSE
 } else {
     future.climate.scenario = stack(enviro.data.future)
-}
-
-## Needed for tryCatch'ing:
-err.null <- function (e) return(NULL)
-
-# function to save projection output raster
-saveModelProjection = function(out.model, model.name, projectiontime) {
-    model.dir = paste(wd, "/output_", model.name, "/", sep="")
-    filename = paste(projectiontime, '.tif')
-    writeRaster(out.model, paste(model.dir, projectiontime, sep="/"), format="GTiff")
-}
-
-# function to get model object
-getModelObject = function(model.name) {
-    model.dir = paste(wd, "/output_", model.name, "/", sep="")
-    model.obj = tryCatch(get(load(file=paste(model.dir, "model.object.RData", sep=""))), error = err.null)
 }
 
 ###run the models and store models

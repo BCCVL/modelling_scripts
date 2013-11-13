@@ -24,6 +24,9 @@ enviro.data.current = {{ strvector(enviro['data']) }} #define the current enviro
 enviro.data.type = {{ strvector(enviro['type']) }} #type in terms of continuous or categorical
 enviro.data.future = {{ strvector(future['data']) }} #define the future enviro data to use
 
+# define path to helper functions
+function.path = "/home/jc140298/modelling_scripts"
+
 model.mahal = TRUE #boolean to run MAHALANOBIS algorithm
 project.mahal = TRUE #boolean to project MAHALANOBIS algorithm
 evaluate.mahal = TRUE #boolean to evaluate MAHALANOBIS algorithm
