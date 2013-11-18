@@ -251,7 +251,7 @@ if (evaluate.brt) {
 		calculatePermutationVarImpt(brt.obj, brt.eval, "brt")
 				
 		# create HTML file with accuracy measures
-		generateHTML(species, paste(wd, "/output_brt", sep='')) 
+		generateHTML(paste(wd, "/output_brt", sep='')) 
 		
         rm(list=c("brt.obj", "brt.eval", "brt.combined.eval")) #clean up the memory
     } else {

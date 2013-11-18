@@ -200,7 +200,7 @@ if (evaluate.bioclim) {
 		calculatePermutationVarImpt(bioclim.obj, bioclim.eval, "bioclim")
 		
 		# create HTML file with accuracy measures
-		generateHTML(species, paste(wd, "/output_bioclim", sep='')) 
+		generateHTML(paste(wd, "/output_bioclim", sep='')) 
 		
 		rm(list=c("bioclim.obj", "bioclim.eval", "bioclim.combined.eval")) #clean up the memory
 	} else {

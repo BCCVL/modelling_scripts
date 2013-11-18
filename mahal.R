@@ -200,7 +200,7 @@ if (evaluate.mahal) {
 		calculatePermutationVarImpt(mahal.obj, mahal.eval, "mahal")
 		
 		# create HTML file with accuracy measures
-		generateHTML(species, paste(wd, "/output_mahal", sep='')) 
+		generateHTML(paste(wd, "/output_mahal", sep='')) 
 		
 		rm(list=c("mahal.obj", "mahal.eval", "mahal.combined.eval")) #clean up the memory
 	} else {

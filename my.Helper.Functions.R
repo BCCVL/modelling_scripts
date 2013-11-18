@@ -13,7 +13,7 @@ getModelObject = function(model.name) {
 saveModelProjection = function(out.model, model.name, projectiontime) {
     model.dir = paste(wd, "/output_", model.name, "/", sep="")
     filename = paste(projectiontime, '.tif')
-    writeRaster(out.model, paste(model.dir, projectiontime, sep="/"), format="GTiff", options="COMPRESS=LZW")
+    writeRaster(out.model, paste(model.dir, projectiontime, sep="/"), format="GTiff", options="COMPRESS=LZW", overwrite=TRUE)
 }
 
 ######################################################################################
@@ -504,7 +504,7 @@ calculatePermutationVarImpt = function(out.model, model.eval, model.name) {
 }
 
 # function to create HTML file with accuracy measures
-generateHTML = function(sp.name, outputdir) {
+generateHTML = function(outputdir) {
 
 	setwd(outputdir)
 
@@ -513,10 +513,10 @@ generateHTML = function(sp.name, outputdir) {
 	accuracystats = read.csv(paste(outputdir, "/combined.modelEvaluation.csv", sep=""),	row.names=c(1))
 
 	# create the output file 
-	target <- HTMLInitFile(outdir=outputdir, filename=paste(sp.name,"_output", sep=""), BackGroundColor="#CCCCCC")
+	target <- HTMLInitFile(outdir=outputdir, filename="results", BackGroundColor="#CCCCCC")
 
 	# add content
-	HTML(paste("<center><br><H1>Model Output for ", sp.name, sep=""), file=target)
+	HTML("<center><br><H1>Model Output", file=target)
 
 	HTML("<br><H2>AUC:ROC curve", file=target)
 	HTMLInsertGraph("AUC.png", file=target)

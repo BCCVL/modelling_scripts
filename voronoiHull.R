@@ -195,7 +195,7 @@ if (evaluate.voronoiHull) {
 		calculatePermutationVarImpt(voronoiHull.obj, voronoiHull.eval, "voronoiHull")
 		
 		# create HTML file with accuracy measures
-		generateHTML(species, paste(wd, "/output_voronoiHull", sep='')) 
+		generateHTML(paste(wd, "/output_voronoiHull", sep='')) 
 		
 		rm(list=c("voronoiHull.obj", "voronoiHull.eval", "voronoiHull.combined.eval")) #clean up the memory
 	} else {

@@ -198,7 +198,7 @@ if (evaluate.geodist) {
 		calculatePermutationVarImpt(geodist.obj, geodist.eval, "geodist")
 		
 		# create HTML file with accuracy measures
-		generateHTML(species, paste(wd, "/output_geodist", sep='')) 
+		generateHTML(paste(wd, "/output_geodist", sep='')) 
 		
 		rm(list=c("geodist.obj", "geodist.eval", "geodist.combined.eval")) #clean up the memory
 	} else {

@@ -197,7 +197,7 @@ if (evaluate.convHull) {
 		calculatePermutationVarImpt(convHull.obj, convHull.eval, "convHull")
 		
 		# create HTML file with accuracy measures
-		generateHTML(species, paste(wd, "/output_convHull", sep='')) 
+		generateHTML(paste(wd, "/output_convHull", sep='')) 
 		
 		rm(list=c("convHull.obj", "convHull.eval", "convHull.combined.eval")) #clean up the memory
 	} else {

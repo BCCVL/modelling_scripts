@@ -200,7 +200,7 @@ if (evaluate.domain) {
 		calculatePermutationVarImpt(domain.obj, domain.eval, "domain")
 		
 		# create HTML file with accuracy measures
-		generateHTML(species, paste(wd, "/output_domain", sep='')) 
+		generateHTML(paste(wd, "/output_domain", sep='')) 
 		
 		rm(list=c("domain.obj", "domain.eval", "domain.combined.eval")) #clean up the memory
 	} else {

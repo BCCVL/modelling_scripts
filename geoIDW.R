@@ -196,7 +196,7 @@ if (evaluate.geoIDW) {
 		calculatePermutationVarImpt(geoIDW.obj, geoIDW.eval, "geoIDW")
 		
 		# create HTML file with accuracy measures
-		generateHTML(species, paste(wd, "/output_geoIDW", sep='')) 
+		generateHTML(paste(wd, "/output_geoIDW", sep='')) 
 		
 		rm(list=c("geoIDW.obj", "geoIDW.eval", "geoIDW.combined.eval")) #clean up the memory
 	} else {

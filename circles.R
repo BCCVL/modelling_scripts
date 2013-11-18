@@ -199,7 +199,7 @@ if (evaluate.circles) {
 		calculatePermutationVarImpt(circles.obj, circles.eval, "circles")
 		
 		# create HTML file with accuracy measures
-		generateHTML(species, paste(wd, "/output_circles", sep='')) 
+		generateHTML(paste(wd, "/output_circles", sep='')) 
 		
 		rm(list=c("circles.obj", "circles.eval", "circles.combined.eval")) #clean up the memory
 	} else {
