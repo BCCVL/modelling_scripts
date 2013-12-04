@@ -131,19 +131,19 @@ if (model.glm) {
 	myBiomodData = formatBiomodData() # 1. Format the data
 	myBiomodOptions <- BIOMOD_ModelingOptions(GLM = glm.myBiomodOptions) # 2. Define the model options
 	# 3. Compute the model
-	myBiomodModelOut.glm <- BIOMOD_Modeling(data = myBiomodData, models=c('GLM'), models.options=myBiomodOptions,
+	myBiomodModelOut.glm <- BIOMOD_Modeling(data=myBiomodData, models=c('GLM'), models.options=myBiomodOptions,
 		NbRunEval=biomod.NbRunEval,	DataSplit=biomod.DataSplit,	Yweights=biomod.Yweights, Prevalence=biomod.Prevalence,
 		VarImport=biomod.VarImport,	models.eval.meth=biomod.models.eval.meth, SaveObj=TRUE,
-		rescal.all.models = biomod.rescal.all.models, do.full.models = biomod.do.full.models, 
-		modeling.id = biomod.modeling.id)
+		rescal.all.models=biomod.rescal.all.models, do.full.models=biomod.do.full.models, 
+		modeling.id=biomod.modeling.id)
 	if (!is.null(myBiomodModelOut.glm)) {		
 		save(myBiomodModelOut.glm, file=paste(outdir,"/model.object.RData",sep='')) #save out the model object
 		# predict for current climate scenario
 		glm.proj.c = my.BIOMOD_Projection(modeling.output=myBiomodModelOut.glm, new.env=current.climate.scenario, proj.name="current", 
-			xy.new.env = biomod.xy.new.env,	selected.models = biomod.selected.models, binary.meth = biomod.binary.meth, 
-			filtered.meth = biomod.filtered.meth, compress = biomod.compress, 
-			build.clamping.mask = biomod.build.clamping.mask, silent = opt.biomod.silent, do.stack = opt.biomod.do.stack, 
-			keep.in.memory = opt.biomod.keep.in.memory,	output.format = opt.biomod.output.format)
+			xy.new.env=biomod.xy.new.env, selected.models=biomod.selected.models, binary.meth=biomod.binary.meth, 
+			filtered.meth=biomod.filtered.meth, compress=biomod.compress, 
+			build.clamping.mask=biomod.build.clamping.mask, silent=opt.biomod.silent, do.stack=opt.biomod.do.stack, 
+			keep.in.memory=opt.biomod.keep.in.memory, output.format=opt.biomod.output.format)
 		# output is saved as part of the projection, format specified in arg 'opt.biomod.output.format'
 	}	
 }
@@ -193,10 +193,10 @@ if (project.glm) {
 	if (!is.null(glm.obj)) {
 		predictors = checkModelLayers(glm.obj)
 		glm.proj = my.BIOMOD_Projection(modeling.output=glm.obj, new.env=predictors, proj.name="future", 
-			xy.new.env = biomod.xy.new.env,	selected.models = biomod.selected.models, binary.meth = biomod.binary.meth, 
-			filtered.meth = biomod.filtered.meth, compress = biomod.compress, 
-			build.clamping.mask = biomod.build.clamping.mask, silent = opt.biomod.silent, do.stack = opt.biomod.do.stack, 
-			keep.in.memory = opt.biomod.keep.in.memory,	output.format = opt.biomod.output.format)
+			xy.new.env=biomod.xy.new.env, selected.models=biomod.selected.models, binary.meth=biomod.binary.meth, 
+			filtered.meth=biomod.filtered.meth, compress=biomod.compress, 
+			build.clamping.mask=biomod.build.clamping.mask, silent=opt.biomod.silent, do.stack=opt.biomod.do.stack, 
+			keep.in.memory=opt.biomod.keep.in.memory, output.format=opt.biomod.output.format)
 		# output is saved as part of the projection, format specified in arg 'opt.biomod.output.format'
 		rm(list=c("glm.obj", "glm.proj")) #clean up the memory
 	} else {

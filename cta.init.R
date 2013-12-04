@@ -38,10 +38,10 @@ evaluate.cta = TRUE #boolean to evaluate classification tree analysis algorithm
 biomod.NbRunEval = {{ Nb_Run_Eval }}  # default 10; n-fold cross-validation; ignored if DataSplitTable is filled
 biomod.DataSplit = {{ Data_Split }} # default 100; % for calibrating/training, remainder for testing; ignored if DataSplitTable is filled
 biomod.Yweights = NULL #response points weights
-#biomod.Prevalence = NULL #either NULL (default) or a 0-1 numeric used to build "weighted response weights"
+biomod.Prevalence = NULL #either NULL (default) or a 0-1 numeric used to build "weighted response weights"
 # EMG Not currently implemented through the BCCVL
 biomod.VarImport = {{ Var_Import }} # default 0; number of resampling of each explanatory variable to measure the relative importance of each variable for each selected model
-#EMG this parameter needs to be specified in order to get VariableImportance metrics during model evaluation
+# EMG this parameter needs to be specified in order to get VariableImportance metrics during model evaluation
 biomod.models.eval.meth = c("KAPPA", "TSS", "ROC" ,"FAR", "SR", "ACCURACY", "BIAS", "POD", "CSI", "ETS") #vector of evaluation metrics 
 biomod.rescal.all.models = FALSE #if true, all model prediction will be scaled with a binomial GLM
 # EMG need to have the default 0-1000 scaling for visualizing the output maps
@@ -85,6 +85,7 @@ opt.biomod.silent = FALSE #logical, if TRUE, console outputs are turned off
 opt.biomod.do.stack = TRUE #logical, if TRUE, attempt to save all projections in a unique object i.e RasterStack
 opt.biomod.keep.in.memory = TRUE #logical, if FALSE only the link pointing to a hard drive copy of projections are stored in output object
 opt.biomod.output.format = ".tif" #'.Rdata', '.grd' or '.img'; if NULL, and new.env is not a Raster class, output is .RData defining projections saving format (on hard drive)
+# EMG 'tif' added for BCCVL, requires my.BIOMOD_Projection.R
 
 # model accuracy statistics
 # these are available from dismo::evaluate.R NOT originally implemented in biomod2::Evaluate.models.R

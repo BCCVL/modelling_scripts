@@ -7,7 +7,7 @@ options(repos=r)
 
 #script to run to develop distribution models
 ###check if libraries are installed, install if necessary and then load them
-necessary=c("biomod2","SDMTools", "rgdal", "pROC", "R2HTML", "png") #list the libraries needed
+necessary=c("rgdal", "SDMTools", "biomod2", "R2HTML", "png") #list the libraries needed
 installed = necessary %in% installed.packages() #check if library is installed
 if (length(necessary[!installed]) >=1) {
     install.packages(necessary[!installed], dep = T) #if library is not installed, install it
@@ -17,18 +17,7 @@ for (lib in necessary) {
 }
 
 ###read in the necessary observation, background and environmental data
-#setwd(wd) #set the working directory
-populate.data = FALSE #variable to define if there is a need to generate occur & background environmental info
-if (file.exists(paste(wd, "/occur.RData", sep=""))
-    && file.exists(paste(wd, "/bkgd.RData", sep=""))) {
-    load(paste(wd, "/occur.RData", sep=""))
-    load(paste(wd, "/bkgd.RData", sep="")) #if files already exist, load in the data
-    if (!all(colnames(occur)==c('lon','lat',enviro.data.names))) {
-        populate.data=TRUE #not the right data, we need to repopulate it
-    }
-} else {
-    populate.data=TRUE # data does not exist, we need to generate it
-}
+populate.data = TRUE #variable to define if there is a need to generate occur & background environmental info
 if (populate.data) {
     occur = read.csv(occur.data) #read in the observation data lon/lat
     if (!is.null(bkgd.data)) {
@@ -41,10 +30,6 @@ if (populate.data) {
         occur[,enviro.data.names[ii]] = extract.data(cbind(occur$lon,occur$lat),tasc) #extract envirodata for observations
         if (!is.null(bkgd.data)) bkgd[,enviro.data.names[ii]] = extract.data(cbind(bkgd$lon,bkgd$lat),tasc) #extract envirodata for background data
     }
-    save(occur,file=paste(wd, "/occur.RData", sep="")) #write out the raw data for analysis
-    if (!is.null(bkgd.data)) {
-        save(bkgd,file=paste(wd, "/bkgd.RData", sep="")) #write out the raw data for analysis
-    }
 }
 
 current.climate.scenario = stack(enviro.data.current)
@@ -53,11 +38,12 @@ if (is.null(enviro.data.future)) {
 } else {
     future.climate.scenario = stack(enviro.data.future)
 }
-# get the name of the scenario for use during projection
-es.name=basename(enviro.data.current)
 
 # source helper functions (err.null, getModelObject, checkModelLayers, saveModelProject)
 source(paste(function.path, "/my.Helper.Functions.R", sep=""))
+
+# source modified projeciton function to create .tif
+source(paste(function.path, "/my.BIOMOD_Projection.R", sep=""))
 
 ###run the models and store models
 ############### BIOMOD2 Models ###############
@@ -134,19 +120,19 @@ if (model.mars) {
 	myBiomodData = formatBiomodData() # 1. Format the data
 	myBiomodOptions <- BIOMOD_ModelingOptions(MARS = mars.BiomodOptions) # 2. Define the model options
 	# 3. Compute the model
-	myBiomodModelOut.mars <- BIOMOD_Modeling(data = myBiomodData, models = c('MARS'),	models.options = myBiomodOptions,
+	myBiomodModelOut.mars <- BIOMOD_Modeling(data=myBiomodData, models=c('MARS'), models.options=myBiomodOptions,
 		NbRunEval=biomod.NbRunEval,	DataSplit=biomod.DataSplit,	Yweights=biomod.Yweights, Prevalence=biomod.Prevalence,
-		VarImport=biomod.VarImport,	models.eval.meth = biomod.models.eval.meth, SaveObj = TRUE,
-		rescal.all.models = biomod.rescal.all.models, do.full.models = biomod.do.full.models, 
-		modeling.id = biomod.modeling.id)
+		VarImport=biomod.VarImport,	models.eval.meth=biomod.models.eval.meth, SaveObj=TRUE,
+		rescal.all.models=biomod.rescal.all.models, do.full.models=biomod.do.full.models, 
+		modeling.id=biomod.modeling.id)
 	if (!is.null(myBiomodModelOut.mars)) {		
 		save(myBiomodModelOut.mars, file=paste(outdir,"/model.object.RData",sep='')) #save out the model object
 		# predict for current climate scenario
-		mars.proj.c = BIOMOD_Projection(modeling.output=myBiomodModelOut.mars, new.env=current.climate.scenario, proj.name=es.name, 
-			xy.new.env = biomod.xy.new.env,	selected.models = biomod.selected.models, binary.meth = biomod.binary.meth, 
-			filtered.meth = biomod.filtered.meth, compress = biomod.compress, 
-			build.clamping.mask = biomod.build.clamping.mask, silent = opt.biomod.silent, do.stack = opt.biomod.do.stack, 
-			keep.in.memory = opt.biomod.keep.in.memory,	output.format = opt.biomod.output.format)
+		mars.proj.c = my.BIOMOD_Projection(modeling.output=myBiomodModelOut.mars, new.env=current.climate.scenario, proj.name="current", 
+			xy.new.env=biomod.xy.new.env, selected.models=biomod.selected.models, binary.meth=biomod.binary.meth, 
+			filtered.meth=biomod.filtered.meth, compress=biomod.compress, 
+			build.clamping.mask=biomod.build.clamping.mask, silent=opt.biomod.silent, do.stack=opt.biomod.do.stack, 
+			keep.in.memory=opt.biomod.keep.in.memory, output.format=opt.biomod.output.format)
 		# output is saved as part of the projection, format specified in arg 'opt.biomod.output.format'
 	}
 }
@@ -195,11 +181,11 @@ if (project.mars) {
 	outdir = paste(wd,'/output_mars',sep=''); setwd(outdir) #set the working directory
 	if (!is.null(mars.obj)) {
 		predictors = checkModelLayers(mars.obj)
-		mars.proj = BIOMOD_Projection(modeling.output=mars.obj, new.env=predictors, proj.name=es.name, 
-			xy.new.env = biomod.xy.new.env,	selected.models = biomod.selected.models, binary.meth = biomod.binary.meth, 
-			filtered.meth = biomod.filtered.meth, compress = biomod.compress, 
-			build.clamping.mask = biomod.build.clamping.mask, silent = opt.biomod.silent, do.stack = opt.biomod.do.stack, 
-			keep.in.memory = opt.biomod.keep.in.memory,	output.format = opt.biomod.output.format)
+		mars.proj = my.BIOMOD_Projection(modeling.output=mars.obj, new.env=predictors, proj.name="future", 
+			xy.new.env=biomod.xy.new.env, selected.models=biomod.selected.models, binary.meth=biomod.binary.meth, 
+			filtered.meth=biomod.filtered.meth, compress=biomod.compress, 
+			build.clamping.mask=biomod.build.clamping.mask, silent=opt.biomod.silent, do.stack=opt.biomod.do.stack, 
+			keep.in.memory=opt.biomod.keep.in.memory, output.format=opt.biomod.output.format)
 		# output is saved as part of the projection, format specified in arg 'opt.biomod.output.format'
 		rm(list=c("mars.obj", "mars.proj")) #clean up the memory
 	} else {
@@ -219,7 +205,7 @@ if (evaluate.mars) {
 	mars.obj = getModelObject("mars") # get the model object
 	if (!is.null(mars.obj)) {
 		mars.loaded.model = BIOMOD_LoadModels(mars.obj, models="MARS") # load model
-		saveBIOMODModelEvaluation(mars.loaded.model, mars.obj) 	# save output
+		saveBIOMODModelEvaluation(mars.loaded.model, mars.obj, "mars") 	# save output
 		rm("mars.obj") #clean up the memory
 	} else {
 		write(paste("FAIL!", species, "Cannot load mars.obj from", getwd(), sep=": "), stdout())
