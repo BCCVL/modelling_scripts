@@ -530,7 +530,7 @@ generateHTML = function(outputdir) {
 
 
 # function to save evaluate output for BIOMOD2 models
-saveBIOMODModelEvaluation = function(loaded.name, biomod.model) {
+saveBIOMODModelEvaluation = function(loaded.name, biomod.model, model.type) {
 	# get and save the model evaluation statistics
 	# EMG these must specified during model creation with the arg "models.eval.meth"
 	evaluation = getModelsEvaluations(biomod.model)
@@ -550,7 +550,7 @@ saveBIOMODModelEvaluation = function(loaded.name, biomod.model) {
 	# save AUC curve
 	require(pROC, quietly=T)
     roc1 <- roc(as.numeric(obs), as.numeric(predictions), percent=T)
-	png(file=paste(getwd(), "/pROC.png", sep=''))
+	png(file=paste(getwd(), "/AUC.png", sep=''))
 	plot(roc1, main=paste("AUC=",round(auc(roc1)/100,3),sep=""), legacy.axes=TRUE)
 	dev.off()
 	
@@ -570,5 +570,9 @@ saveBIOMODModelEvaluation = function(loaded.name, biomod.model) {
 			show.variables = getModelsInputData(biomod.model,"expl.var.names"), fixed.var.metric = "mean") 
 			#, data_species = getModelsInputData(biomod.model,"resp.var"))
 			# EMG need to investigate why you would want to use this option - uses presence data only
+		
+	# create HTML file with accuracy measures
+	generateHTML(paste(wd, "/output_", model.type, sep=''))
+		
 	dev.off()
 }

@@ -26,7 +26,7 @@
                                 selected.models = 'all',
                                 binary.meth = NULL,
                                 filtered.meth = NULL,
-#                                compress = 'xz',
+                                compress = 'xz',
                                 build.clamping.mask = TRUE,
                                 ...){
   
@@ -66,14 +66,14 @@ output.format <- ".GTiff"
                                         selected.models,
                                         binary.meth,
                                         filtered.meth,
-#                                        compress,
+                                        compress,
                                         do.stack)#, clamping.level)
   
   proj.name <- args$proj.name
   selected.models <- args$selected.models
   binary.meth <- args$binary.meth
   filtered.meth <- args$filtered.meth
-#  compress <- args$compress
+  compress <- args$compress
   do.stack <- args$do.stack
   xy.new.env <- args$xy.new.env
 #   clamping.level <- args$clamping.level
@@ -170,15 +170,15 @@ output.format <- ".GTiff"
   assign(x = paste("proj_",proj.name, "_", modeling.output@sp.name, sep=""),
          value = proj)
   
-#  if(output.format == '.RData'){
-#    save(list = paste("proj_",proj.name, "_", modeling.output@sp.name, sep=""), 
-#         file = file.path(modeling.output@sp.name, paste("proj_", proj.name, sep= ""), paste("proj_",proj.name,"_", modeling.output@sp.name, output.format ,sep="")), compress=compress)     
-#  } else {
+  if(output.format == '.RData'){
+    save(list = paste("proj_",proj.name, "_", modeling.output@sp.name, sep=""), 
+         file = file.path(modeling.output@sp.name, paste("proj_", proj.name, sep= ""), paste("proj_",proj.name,"_", modeling.output@sp.name, output.format ,sep="")), compress=compress)     
+  } else {
     writeRaster(x=get(paste("proj_",proj.name, "_", modeling.output@sp.name, sep="")),
 #		filename=file.path(modeling.output@sp.name, paste("proj_", proj.name, sep= ""), paste("proj_",proj.name,"_", modeling.output@sp.name, output.format ,sep="")), overwrite=TRUE,
 		filename=paste(getwd(), "/", proj.name, output.format, sep=""), overwrite=TRUE, 				
 		format="GTiff", options=c("COMPRESS=LZW"))
-#  }
+  }
   
   # 3. Compute binary and filtered transformation =-=-=-=-=-=-=-=- #
   if(!is.null(binary.meth) | !is.null(filtered.meth)){
@@ -212,14 +212,15 @@ output.format <- ".GTiff"
       assign(x = paste("proj_",proj.name, "_", modeling.output@sp.name,"_",eval.meth,"bin", sep=""),
              value = BinaryTransformation(proj,asub(thresholds, eval.meth[drop=FALSE], 1, drop=FALSE)))
          
-#      if(output.format == '.RData'){
-#        save(list = paste("proj_",proj.name, "_", modeling.output@sp.name,"_",eval.meth,"bin", sep=""), 
-#             file = file.path(modeling.output@sp.name, paste("proj_", proj.name, sep= ""), paste("proj_",proj.name,"_", modeling.output@sp.name,"_",eval.meth,"bin", output.format ,sep="")), compress=compress)   
-#      } else {
+      if(output.format == '.RData'){
+        save(list = paste("proj_",proj.name, "_", modeling.output@sp.name,"_",eval.meth,"bin", sep=""), 
+             file = file.path(modeling.output@sp.name, paste("proj_", proj.name, sep= ""), paste("proj_",proj.name,"_", modeling.output@sp.name,"_",eval.meth,"bin", output.format ,sep="")), compress=compress)   
+      } else {
         writeRaster(x=get(paste("proj_",proj.name, "_", modeling.output@sp.name,"_",eval.meth,"bin", sep="")),
-                    filename=file.path(modeling.output@sp.name, paste("proj_", proj.name, sep= ""), paste("proj_",proj.name,"_", modeling.output@sp.name,"_",eval.meth,"bin", output.format ,sep="")), overwrite=TRUE,
+                    #filename=file.path(modeling.output@sp.name, paste("proj_", proj.name, sep= ""), paste("proj_",proj.name,"_", modeling.output@sp.name,"_",eval.meth,"bin", output.format ,sep="")), overwrite=TRUE,
+					filename=paste(getwd(), "/", proj.name, output.format, sep=""), overwrite=TRUE, 						
 					format="GTiff", options=c("COMPRESS=LZW"))
-#      }
+      }
       
       rm(list=paste("proj_",proj.name, "_", modeling.output@sp.name,"_",eval.meth,"bin", sep=""))
     }
@@ -230,14 +231,14 @@ output.format <- ".GTiff"
       assign(x = paste("proj_",proj.name, "_", modeling.output@sp.name,"_",eval.meth,"filt", sep=""),
              value = BinaryTransformation(proj,asub(thresholds, eval.meth[drop=FALSE], 1, drop=FALSE)))
       
-#      if(output.format == '.RData'){
-#        save(list = paste("proj_",proj.name, "_", modeling.output@sp.name,"_",eval.meth,"filt", sep=""), 
-#             file = file.path(modeling.output@sp.name, paste("proj_", proj.name, sep= ""), paste("proj_",proj.name,"_", modeling.output@sp.name,"_",eval.meth,"bin", output.format ,sep="")), compress=compress)
-#      } else {
+      if(output.format == '.RData'){
+        save(list = paste("proj_",proj.name, "_", modeling.output@sp.name,"_",eval.meth,"filt", sep=""), 
+             file = file.path(modeling.output@sp.name, paste("proj_", proj.name, sep= ""), paste("proj_",proj.name,"_", modeling.output@sp.name,"_",eval.meth,"bin", output.format ,sep="")), compress=compress)
+      } else {
         writeRaster(x=get(paste("proj_",proj.name, "_", modeling.output@sp.name,"_",eval.meth,"filt", sep="")),
                     filename=file.path(modeling.output@sp.name, paste("proj_", proj.name, sep= ""), paste("proj_",proj.name,"_", modeling.output@sp.name,"_",eval.meth,"bin", output.format ,sep="")), overwrite=TRUE,
 					format="GTiff", options=c("COMPRESS=LZW"))
-#      }
+      }
       
       rm(list=paste("proj_",proj.name, "_", modeling.output@sp.name,"_",eval.meth,"filt", sep=""))
     } 
@@ -291,7 +292,7 @@ output.format <- ".GTiff"
 
 .BIOMOD_Projection.check.args <- function(modeling.output, new.env, proj.name, xy.new.env, 
                                           selected.models, binary.meth, filtered.meth,
-#                                          compress, 
+                                          compress, 
 										  do.stack){#, clamping.level){
   ## modeling.output
   if( class(modeling.output) != 'BIOMOD.models.out'){
@@ -380,10 +381,10 @@ output.format <- ".GTiff"
     }
   }
   
-#  ## compress
-#  if(compress == 'xz'){
-#    compress <- ifelse(.Platform$OS.type == 'windows', 'gzip', 'xz')
-#  }
+  ## compress
+  if(compress == 'xz'){
+    compress <- ifelse(.Platform$OS.type == 'windows', 'gzip', 'xz')
+  }
       
   ## do.stack
   if(class(new.env) != 'RasterStack'){
@@ -425,7 +426,7 @@ output.format <- ".GTiff"
               selected.models = selected.models,
               binary.meth = binary.meth,
               filtered.meth = filtered.meth,
-#              compress = compress,
+              compress = compress,
               do.stack = do.stack))#, clamping.level = clamping.level))
 
 }

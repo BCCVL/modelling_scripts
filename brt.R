@@ -18,17 +18,7 @@ for (lib in necessary) {
 
 ###read in the necessary observation, background and environmental data
 #setwd(wd) #set the working directory
-populate.data = FALSE #variable to define if there is a need to generate occur & background environmental info
-if (file.exists(paste(wd, "/occur.RData", sep=""))
-    && file.exists(paste(wd, "/bkgd.RData", sep=""))) {
-    load(paste(wd, "/occur.RData", sep=""))
-    load(paste(wd, "/bkgd.RData", sep="")) #if files already exist, load in the data
-    if (!all(colnames(occur)==c('lon','lat',enviro.data.names))) {
-        populate.data=TRUE #not the right data, we need to repopulate it
-    }
-} else {
-    populate.data=TRUE # data does not exist, we need to generate it
-}
+populate.data = TRUE #variable to define if there is a need to generate occur & background environmental info
 if (populate.data) {
     occur = read.csv(occur.data) #read in the observation data lon/lat
     if (!is.null(bkgd.data)) {
@@ -40,10 +30,6 @@ if (populate.data) {
         tasc = readGDAL(enviro.data.current[ii]) #read in the envirodata
         occur[,enviro.data.names[ii]] = extract.data(cbind(occur$lon,occur$lat),tasc) #extract envirodata for observations
         if (!is.null(bkgd.data)) bkgd[,enviro.data.names[ii]] = extract.data(cbind(bkgd$lon,bkgd$lat),tasc) #extract envirodata for background data
-    }
-    save(occur,file=paste(wd, "/occur.RData", sep="")) #write out the raw data for analysis
-    if (!is.null(bkgd.data)) {
-        save(bkgd,file=paste(wd, "/bkgd.RData", sep="")) #write out the raw data for analysis
     }
 }
 
@@ -116,8 +102,8 @@ if (model.brt) {
     tree.complexity = brt.tree.complexity,
     learning.rate = brt.learning.rate,
     bag.fraction = brt.bag.fraction,
-    #site.weights = brt.site.weights,
-    #var.monotone = brt.var.monotone,
+    site.weights = brt.site.weights,
+    var.monotone = brt.var.monotone,
     n.folds = brt.n.folds,
     prev.stratify = brt.prev.stratify,
     family = brt.family,
@@ -138,7 +124,7 @@ if (model.brt) {
         save(brt,file=paste(outdir,"/model.object.RData",sep='')) #save out the model object
         # NOTE the order of arguments in the predict function for brt; this is because
         # the function is defined outside of the dismo package
-        brt.proj = predict(current.climate.scenario, brt, n.trees=brt$gbm.call$best.trees) # predict for CURRENT climate scenario
+        brt.proj = predict(current.climate.scenario, brt, n.trees=brt$gbm.call$best.trees, type="response") # predict for CURRENT climate scenario
         saveModelProjection(brt.proj, "brt", "current")
     } else {
         write(paste("FAIL!", species, "Cannot create brt model object", sep=": "), stdout())
@@ -170,7 +156,7 @@ if (project.brt) {
 		predictors = checkModelLayers(brt.obj)
         # NOTE the order of arguments in the predict function for brt; this is because
         # the function is defined outside of the dismo package
-        brt.proj = predict(future.climate.scenario, brt.obj, n.trees=brt.obj$gbm.call$best.trees) # predict for given climate scenario
+        brt.proj = predict(future.climate.scenario, brt.obj, n.trees=brt.obj$gbm.call$best.trees, type="response") # predict for given climate scenario
         saveModelProjection(brt.proj, "brt", "future") # save output
 		rm(list=c("brt.obj", "brt.proj")) #clean up the memory
     } else {

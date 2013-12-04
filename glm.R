@@ -7,7 +7,7 @@ options(repos=r)
 
 #script to run to develop distribution models
 ###check if libraries are installed, install if necessary and then load them
-necessary=c("biomod2","SDMTools", "rgdal", "pROC", "R2HTML", "png") #list the libraries needed
+necessary=c("rgdal", "SDMTools", "biomod2", "R2HTML", "png") #list the libraries needed
 installed = necessary %in% installed.packages() #check if library is installed
 if (length(necessary[!installed]) >=1) {
     install.packages(necessary[!installed], dep = T) #if library is not installed, install it
@@ -17,18 +17,7 @@ for (lib in necessary) {
 }
 
 ###read in the necessary observation, background and environmental data
-#setwd(wd) #set the working directory
-populate.data = FALSE #variable to define if there is a need to generate occur & background environmental info
-if (file.exists(paste(wd, "/occur.RData", sep=""))
-    && file.exists(paste(wd, "/bkgd.RData", sep=""))) {
-    load(paste(wd, "/occur.RData", sep=""))
-    load(paste(wd, "/bkgd.RData", sep="")) #if files already exist, load in the data
-    if (!all(colnames(occur)==c('lon','lat',enviro.data.names))) {
-        populate.data=TRUE #not the right data, we need to repopulate it
-    }
-} else {
-    populate.data=TRUE # data does not exist, we need to generate it
-}
+populate.data = TRUE #variable to define if there is a need to generate occur & background environmental info
 if (populate.data) {
     occur = read.csv(occur.data) #read in the observation data lon/lat
     if (!is.null(bkgd.data)) {
@@ -41,10 +30,6 @@ if (populate.data) {
         occur[,enviro.data.names[ii]] = extract.data(cbind(occur$lon,occur$lat),tasc) #extract envirodata for observations
         if (!is.null(bkgd.data)) bkgd[,enviro.data.names[ii]] = extract.data(cbind(bkgd$lon,bkgd$lat),tasc) #extract envirodata for background data
     }
-    save(occur,file=paste(wd, "/occur.RData", sep="")) #write out the raw data for analysis
-    if (!is.null(bkgd.data)) {
-        save(bkgd,file=paste(wd, "/bkgd.RData", sep="")) #write out the raw data for analysis
-    }
 }
 
 current.climate.scenario = stack(enviro.data.current)
@@ -53,11 +38,12 @@ if (is.null(enviro.data.future)) {
 } else {
     future.climate.scenario = stack(enviro.data.future)
 }
-# get the name of the scenario for use during projection
-es.name=basename(enviro.data.current)
 
 # source helper functions (err.null, getModelObject, checkModelLayers, saveModelProject)
 source(paste(function.path, "/my.Helper.Functions.R", sep=""))
+
+# source modified projeciton function to create .tif
+source(paste(function.path, "/my.BIOMOD_Projection.R", sep=""))
 
 ###run the models and store models
 ############### BIOMOD2 Models ###############
@@ -150,11 +136,10 @@ if (model.glm) {
 		VarImport=biomod.VarImport,	models.eval.meth=biomod.models.eval.meth, SaveObj=TRUE,
 		rescal.all.models = biomod.rescal.all.models, do.full.models = biomod.do.full.models, 
 		modeling.id = biomod.modeling.id)
-	# model output saved as part of BIOMOD_Modeling() # EMG not sure how to retrieve
 	if (!is.null(myBiomodModelOut.glm)) {		
 		save(myBiomodModelOut.glm, file=paste(outdir,"/model.object.RData",sep='')) #save out the model object
 		# predict for current climate scenario
-		glm.proj.c = BIOMOD_Projection(modeling.output=myBiomodModelOut.glm, new.env=current.climate.scenario, proj.name=es.name, 
+		glm.proj.c = my.BIOMOD_Projection(modeling.output=myBiomodModelOut.glm, new.env=current.climate.scenario, proj.name="current", 
 			xy.new.env = biomod.xy.new.env,	selected.models = biomod.selected.models, binary.meth = biomod.binary.meth, 
 			filtered.meth = biomod.filtered.meth, compress = biomod.compress, 
 			build.clamping.mask = biomod.build.clamping.mask, silent = opt.biomod.silent, do.stack = opt.biomod.do.stack, 
@@ -206,8 +191,8 @@ if (project.glm) {
 	glm.obj = getModelObject("glm") # get the model object
 	outdir = paste(wd,'/output_glm',sep=''); setwd(outdir) #set the working directory
 	if (!is.null(glm.obj)) {
-		predictors = checkModelLayers(glm.obj) # get future climate scenarios
-		glm.proj = BIOMOD_Projection(modeling.output=glm.obj, new.env=predictors, proj.name=es.name, 
+		predictors = checkModelLayers(glm.obj)
+		glm.proj = my.BIOMOD_Projection(modeling.output=glm.obj, new.env=predictors, proj.name="future", 
 			xy.new.env = biomod.xy.new.env,	selected.models = biomod.selected.models, binary.meth = biomod.binary.meth, 
 			filtered.meth = biomod.filtered.meth, compress = biomod.compress, 
 			build.clamping.mask = biomod.build.clamping.mask, silent = opt.biomod.silent, do.stack = opt.biomod.do.stack, 
@@ -229,8 +214,8 @@ model.accuracy = c(dismo.eval.method, biomod.models.eval.meth)
 if (evaluate.glm) {
 	glm.obj = getModelObject("glm") # get the model object
 	if (!is.null(glm.obj)) {
-		glm.loaded.model = BIOMOD_LoadModels(glm.obj, models="GLM")
-		saveBIOMODModelEvaluation(glm.loaded.model, glm.obj) 	# save output
+		glm.loaded.model = BIOMOD_LoadModels(glm.obj, models="GLM") # load model
+		saveBIOMODModelEvaluation(glm.loaded.model, glm.obj, "glm") 	# save output
 		rm("glm.obj") #clean up the memory
 	} else {
 		write(paste("FAIL!", species, "Cannot load glm.obj from", getwd(), sep=": "), stdout())

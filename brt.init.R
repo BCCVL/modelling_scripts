@@ -52,7 +52,7 @@ brt.plot.folds = FALSE #Logical. plot the individual folds as well
 brt.verbose = FALSE #Logical. control amount of screen reporting
 brt.silent = FALSE #Logical. to allow running with no output for simplifying model)
 brt.keep.fold.models = FALSE #Logical. keep the fold models from cross valiation
-brt.keep.fold.vector = FALSE #Logical. allows the vector defining fold membership to be kept
+brt.keep.fold.vector = TRUE #Logical. allows the vector defining fold membership to be kept
 brt.keep.fold.fit = FALSE #Logical. allows the predicted values for observations from cross-validation to be kept
 
 # model accuracy statistics
