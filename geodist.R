@@ -18,17 +18,7 @@ for (lib in necessary) {
 
 ###read in the necessary observation, background and environmental data
 #setwd(wd) #set the working directory
-populate.data = FALSE #variable to define if there is a need to generate occur & background environmental info
-if (file.exists(paste(wd, "/occur.RData", sep=""))
-    && file.exists(paste(wd, "/bkgd.RData", sep=""))) {
-    load(paste(wd, "/occur.RData", sep=""))
-    load(paste(wd, "/bkgd.RData", sep="")) #if files already exist, load in the data
-    if (!all(colnames(occur)==c('lon','lat',enviro.data.names))) {
-        populate.data=TRUE #not the right data, we need to repopulate it
-    }
-} else {
-    populate.data=TRUE # data does not exist, we need to generate it
-}
+populate.data = TRUE #variable to define if there is a need to generate occur & background environmental info
 if (populate.data) {
     occur = read.csv(occur.data) #read in the observation data lon/lat
     if (!is.null(bkgd.data)) {
@@ -40,10 +30,6 @@ if (populate.data) {
         tasc = readGDAL(enviro.data.current[ii]) #read in the envirodata
         occur[,enviro.data.names[ii]] = extract.data(cbind(occur$lon,occur$lat),tasc) #extract envirodata for observations
         if (!is.null(bkgd.data)) bkgd[,enviro.data.names[ii]] = extract.data(cbind(bkgd$lon,bkgd$lat),tasc) #extract envirodata for background data
-    }
-    save(occur,file=paste(wd, "/occur.RData", sep="")) #write out the raw data for analysis
-    if (!is.null(bkgd.data)) {
-        save(bkgd,file=paste(wd, "/bkgd.RData", sep="")) #write out the raw data for analysis
     }
 }
 
@@ -118,7 +104,7 @@ if (project.geodist) {
 	if (!is.null(geodist.obj)) {
 		predictors = checkModelLayers(geodist.obj)
 		geodist.proj = predict(geodist.obj, predictors, scale=opt.scale, ext=opt.ext) # predict for given climate scenario
-		saveModelProjection(geodist.proj, "geodist") 	# save output
+		saveModelProjection(geodist.proj, "geodist", "future") 	# save output
 		rm(list=c("geodist.obj", "geodist.proj")) #clean up the memory
 	} else {
 		write(paste("FAIL!", species, "Cannot load geodist.obj from", wd, "output_geodist", sep=": "), stdout())
